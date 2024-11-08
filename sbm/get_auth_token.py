@@ -3,8 +3,7 @@ import typer
 
 app = typer.Typer(help="Get an authentication token for accessing the SWE-bench M API")
 
-@app.callback(invoke_without_command=True, name="get-auth-token")
-def main(
+def get_token(
     email: str = typer.Argument(
         ..., 
         help="Email address to generate an authentication token for",

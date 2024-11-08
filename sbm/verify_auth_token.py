@@ -4,8 +4,7 @@ from typing import Optional
 
 app = typer.Typer()
 
-@app.callback(invoke_without_command=True, name="verify-token")
-def main(
+def verify(
     verification_code: str = typer.Argument(..., help="Verification code to verify"),
     auth_token: Optional[str] = typer.Option(None, '--auth_token', help="Auth token to verify", envvar="SWEBENCH_API_KEY"),
 ):

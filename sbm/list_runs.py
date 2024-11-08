@@ -5,8 +5,7 @@ from typing import Optional
 
 app = typer.Typer(help="List all existing run IDs", name="list-runs")
 
-@app.callback(invoke_without_command=True)
-def main(auth_token: Optional[str] = typer.Option(None, help="Auth token to verify", envvar="SWEBENCH_API_KEY")):
+def list_runs(auth_token: Optional[str] = typer.Option(None, help="Auth token to verify", envvar="SWEBENCH_API_KEY")):
     """List all existing run IDs in your account"""
     payload = {
         "auth_token": auth_token
@@ -15,6 +14,8 @@ def main(auth_token: Optional[str] = typer.Option(None, help="Auth token to veri
     result = response.json()
     if 'error' in result:
         typer.secho(f"Error: {result['error']}", fg="red", err=True)
+    elif len(result['run_ids']) == 0:
+        typer.echo("No runs found")
     else:
         typer.echo("Run IDs:")
         for run_id in result['run_ids']:

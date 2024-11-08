@@ -40,8 +40,8 @@ def process_predictions(predictions_path: str, instance_ids: list[str]):
         raise ValueError("Duplicate instance IDs found in predictions - please remove duplicates before submitting")
     return {p['instance_id']: p for p in preds}
 
-@app.callback(invoke_without_command=True, name="submit")
-def main(
+
+def submit(
     predictions_path: str = typer.Option(
         ..., 
         '--predictions_path', 
