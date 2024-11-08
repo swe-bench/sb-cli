@@ -1,6 +1,4 @@
-# function_url = 'https://dt7fohwzhwmoqijg6z3pbip7sq0nvdby.lambda-url.us-east-2.on.aws/'
-function_url = 'https://api.swebench.com/prod/sbm-get-auth'
-import json
+function_url = 'https://api.swebench.com/gen-auth-token'
 import requests
 from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter

@@ -1,6 +1,7 @@
-function_url = 'https://hyjpnlzllvjonvrogyfi7uroku0bxnlc.lambda-url.us-east-2.on.aws/'
+function_url = 'https://api.swebench.com/verify-token'
 import json
 import requests
+import os
 from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter
 
@@ -16,7 +17,9 @@ def main(auth_token: str, verification_code: str):
 
 if __name__ == "__main__":
     parser = ArgumentParser(description="Verify auth token", formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--auth_token", required=True, help="Auth token to verify")
+    parser.add_argument("--auth_token", required=False, help="Auth token to verify")
     parser.add_argument("--verification_code", required=True, help="Verification code to verify")
     args = parser.parse_args()
+    if not args.auth_token:
+        args.auth_token = os.getenv('SWEBENCH_API_KEY')
     main(args.auth_token, args.verification_code)
