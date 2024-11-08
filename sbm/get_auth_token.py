@@ -1,18 +1,31 @@
 import requests
-from argparse import ArgumentParser
-from argparse import ArgumentDefaultsHelpFormatter
+import typer
 
+app = typer.Typer(help="Get an authentication token for accessing the SWE-bench M API")
 
-def main(email: str):
+@app.callback(invoke_without_command=True, name="get-auth-token")
+def main(
+    email: str = typer.Argument(
+        ..., 
+        help="Email address to generate an authentication token for",
+        show_default=False
+    )
+):
+    """
+    Generate a new authentication token for accessing the SWE-bench API.
+    
+    The token will be sent to the provided email address along with a verification code.
+    You will need to verify the token using the 'verify-token' command before it can be used.
+    """
     payload = {
         'email': email,
     }
     response = requests.post('https://api.swebench.com/gen-auth-token', json=payload)
-    print(response.json())
-
-
-if __name__ == "__main__":
-    parser = ArgumentParser(description="Get auth token", formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("--email", required=True, help="Email to get auth token for")
-    args = parser.parse_args()
-    main(args.email)
+    result = response.json()
+    if response.status_code != 200:
+        typer.secho(f"Error: {response.status_code} - {result['error']}", fg="red", err=True)
+        raise typer.Exit(1)
+    message = result['message']
+    auth_token = result['auth_token']
+    typer.echo(message)
+    typer.echo(auth_token)

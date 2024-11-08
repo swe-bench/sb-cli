@@ -1,31 +1,21 @@
-import requests
-import json
 import os
-from argparse import ArgumentParser
-from argparse import ArgumentDefaultsHelpFormatter
+import requests
+import typer
+from typing import Optional
 
+app = typer.Typer(help="List all existing run IDs", name="list-runs")
 
-def main(auth_token: str):
+@app.callback(invoke_without_command=True)
+def main(auth_token: Optional[str] = typer.Option(None, help="Auth token to verify", envvar="SWEBENCH_API_KEY")):
+    """List all existing run IDs in your account"""
     payload = {
         "auth_token": auth_token
     }
     response = requests.post("https://api.swebench.com/list-runs", json=payload)
     result = response.json()
     if 'error' in result:
-        print(f"Error: {result['error']}")
+        typer.secho(f"Error: {result['error']}", fg="red", err=True)
     else:
-        print("Run IDs:")
+        typer.echo("Run IDs:")
         for run_id in result['run_ids']:
-            print(run_id)
-
-
-if __name__ == "__main__":
-    parser = ArgumentParser(
-        description="List runs from the SBMapi",
-        formatter_class=ArgumentDefaultsHelpFormatter
-    )
-    parser.add_argument("--auth_token", type=str, required=False)
-    args = parser.parse_args()
-    if not args.auth_token:
-        args.auth_token = os.getenv('SWEBENCH_API_KEY')
-    main(args.auth_token)
+            typer.echo(run_id)
