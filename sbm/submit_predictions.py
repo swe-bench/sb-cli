@@ -1,4 +1,3 @@
-function_url = 'https://api.swebench.com/submit'
 import requests
 import json
 import os
@@ -45,7 +44,7 @@ def main(
         "instance_ids": instance_ids,
         "run_id": run_id
     }
-    with requests.post(f"{function_url}/api/evaluate", json=payload, stream=True) as response:
+    with requests.post("https://api.swebench.com/submit/api/evaluate", json=payload, stream=True) as response:
         for line in response.iter_lines():
             if line:
                 status = json.loads(line.decode('utf-8'))

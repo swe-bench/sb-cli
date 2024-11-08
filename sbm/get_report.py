@@ -1,4 +1,3 @@
-function_url = 'https://api.swebench.com/get-report'
 import requests
 import json
 import os
@@ -24,7 +23,7 @@ def main(auth_token: str, run_id: str, overwrite: bool = False, **kwargs):
         'run_id': run_id,
         **kwargs
     }
-    response = requests.post(function_url, json=payload)
+    response = requests.post('https://api.swebench.com/get-report', json=payload)
     if response.status_code != 200:
         print(f"Error: {response.status_code}")
         return

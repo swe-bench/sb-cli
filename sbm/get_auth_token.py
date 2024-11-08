@@ -1,4 +1,3 @@
-function_url = 'https://api.swebench.com/gen-auth-token'
 import requests
 from argparse import ArgumentParser
 from argparse import ArgumentDefaultsHelpFormatter
@@ -8,7 +7,7 @@ def main(email: str):
     payload = {
         'email': email,
     }
-    response = requests.post(function_url, json=payload)
+    response = requests.post('https://api.swebench.com/gen-auth-token', json=payload)
     print(response.json())
 
 

@@ -1,4 +1,3 @@
-function_url = 'https://api.swebench.com/list-runs'
 import requests
 import json
 import os
@@ -10,7 +9,7 @@ def main(auth_token: str):
     payload = {
         "auth_token": auth_token
     }
-    response = requests.post(f"{function_url}/api/list_runs", json=payload)
+    response = requests.post("https://api.swebench.com/list-runs", json=payload)
     result = response.json()
     if 'error' in result:
         print(f"Error: {result['error']}")
