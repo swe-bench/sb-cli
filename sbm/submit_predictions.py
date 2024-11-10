@@ -1,5 +1,5 @@
 import json
-import os
+import time
 import requests
 import typer
 from typing import Optional, List
@@ -78,23 +78,42 @@ def submit(
         TaskProgressColumn(),
         console=console,
     )
-    
+
+    # function_url = "https://api.swebench.com/submit"
+    # function_url = 'https://zackrtimj6lcc427vggtkcnt3a0dlpkr.lambda-url.us-east-2.on.aws/'
+    function_url = 'https://c6m4oi2ge4wy7nai5sltviscf40mjjeh.lambda-url.us-east-2.on.aws/'
+    response = requests.post(function_url, json=payload)
+    if response.status_code != 202:
+        raise ValueError(f"Error submitting predictions: {response.text}")
+    launch_data = response.json()
+    all_ids = launch_data['new_ids'] + launch_data['completed_ids']
+    total = len(all_ids)
+    poll_payload = {
+        'auth_token': auth_token,
+        'run_id': run_id
+    }
+    start_time = time.time()
+    timeout = 60 * 5
     with progress:
-        task = progress.add_task("", total=None)  # Unknown total initially
-        with requests.post("https://api.swebench.com/submit", json=payload, stream=True) as response:
-            for line in response.iter_lines():
-                if line:
-                    status = json.loads(line.decode('utf-8'))
-                    if 'status' not in status:
-                        raise ValueError(f"Error submitting predictions: {str(status)}")
-                    
-                    # Update progress
-                    progress.update(task, 
-                        total=status['total'],
-                        completed=status['succeeded'],
-                        description=f"[green]✓ {status['succeeded']}[/] - [red]✗ {status['failed']}[/] - Total: {status['total']}"
-                    )
-                    
-                    if status['status'] == 'complete':
-                        console.print("\n[bold green]✓ Submission complete![/]")
-                        break
+        # Create task once before the loop
+        task = progress.add_task("", total=total)
+        
+        while True:
+            # Remove task creation from here
+            poll_response = requests.get('https://api.swebench.com/poll-jobs', json=poll_payload)
+            poll_response.raise_for_status()
+            submitted = len(set(poll_response.json()['submitted']) & set(all_ids))
+            # Update progress
+            progress.update(task, 
+                total=total,
+                completed=submitted
+            )
+            
+            if submitted == total:
+                console.print("\n[bold green]✓ Submission complete![/]")
+                break
+            elif time.time() - start_time > timeout:
+                console.print(f"\n[bold red]✗ Submission timed out after {timeout} seconds[/]")
+                break
+            else:
+                time.sleep(5)
