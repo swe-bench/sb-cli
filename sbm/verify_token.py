@@ -17,7 +17,8 @@ def verify(
         }
         response = requests.post(f"{URL_ROOT}/verify-token", json=payload)
         response.raise_for_status()  # Raise an exception for bad status codes
-        typer.echo(response.json())
+        message = response.json()['message']
+        typer.echo(message)
     except requests.RequestException as e:
         typer.secho(f"API request failed: {str(e)}", fg="red", err=True)
         raise typer.Exit(1)

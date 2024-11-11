@@ -55,10 +55,11 @@ def submit(
         help="Auth token to use - (defaults to SWEBENCH_API_KEY)", 
         envvar="SWEBENCH_API_KEY"
     ),
-    instance_ids: Optional[List[str]] = typer.Option(
+    instance_ids: Optional[str] = typer.Option(
         None, 
-        '--instance_ids', 
-        help="Instance ID subset to submit predictions - (defaults to all submitted instances)"
+        '--instance_ids',
+        help="Instance ID subset to submit predictions - (defaults to all submitted instances)",
+        callback=lambda x: x.split(',') if x else None  # Split comma-separated string into list
     )
 ):
     """Submit predictions to the SWE-bench M API."""
@@ -95,26 +96,31 @@ def submit(
     }
     start_time = time.time()
     timeout = 60 * 5
+    succeeded = False
     with progress:
-        # Create task once before the loop
         task = progress.add_task("", total=total)
         
         while True:
-            # Remove task creation from here
             poll_response = requests.get(f'{URL_ROOT}/poll-jobs', json=poll_payload)
             poll_response.raise_for_status()
             submitted = len(set(poll_response.json()['submitted']) & set(all_ids))
-            # Update progress
             progress.update(task, 
                 total=total,
                 completed=submitted
             )
             
             if submitted == total:
-                console.print("\n[bold green]✓ Submission complete![/]")
+                succeeded = True
                 break
             elif time.time() - start_time > timeout:
-                console.print(f"\n[bold red]✗ Submission timed out after {timeout} seconds[/]")
+                succeeded = False
                 break
             else:
                 time.sleep(5)
+        
+        progress.stop()
+        
+    if succeeded:
+        console.print("[bold green]✓ Submission complete![/]")
+    else:
+        console.print("[bold red]✗ Submission failed![/]")
