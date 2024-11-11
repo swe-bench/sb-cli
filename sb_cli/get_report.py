@@ -9,15 +9,15 @@ from rich.console import Console
 
 app = typer.Typer(help="Get the evaluation report for a specific run")
 
-def safe_save_json(data: dict, file_path: str, overwrite: bool = False):
-    if Path(file_path).exists() and not overwrite:
+def safe_save_json(data: dict, file_path: Path, overwrite: bool = False):
+    if file_path.exists() and not overwrite:
         ext = 1
-        while Path(file_path).with_suffix(f".json-{ext}").exists():
+        while file_path.with_suffix(f".json-{ext}").exists():
             ext += 1
         file_path = file_path.with_suffix(f".json-{ext}")
     with open(file_path, 'w') as f:
         json.dump(data, f, indent=4)
-    typer.echo(f"Saved report to {file_path}")
+    return file_path
 
 
 def get_str_report(report: dict) -> dict:
@@ -88,6 +88,8 @@ def get_report(
         report_path = Path(f"{run_id}.json")
         response_path = Path(f"{run_id}.response.json")
         
-    safe_save_json(report, str(report_path), overwrite)
+    report_path = safe_save_json(report, report_path, overwrite)
+    typer.echo(f"Saved full report to {report_path}!")
     if response:
-        safe_save_json(response, str(response_path), False)
+        response_path = safe_save_json(response, response_path, False)
+        typer.echo(f"Saved response to {response_path}")
