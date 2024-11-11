@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="assets/sb-cli-logo.png" alt="SWE-bench CLI Logo" style="max-width: 100%; max-height: 250px;">
+</p>
+
+
 # SWE-bench CLI
 
 A command-line interface for interacting with the SWE-bench API. Use this tool to submit predictions, manage runs, and retrieve evaluation reports.
