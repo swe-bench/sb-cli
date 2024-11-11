@@ -5,7 +5,7 @@ import typer
 from typing import Optional, List
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.console import Console
-from .constants import URL_ROOT
+from .constants import API_BASE_URL
 from .get_report import get_report
 
 app = typer.Typer(help="Submit predictions to the SBM API")
@@ -71,7 +71,7 @@ def wait_for_running(all_ids: list[str], auth_token: str, run_id: str, console: 
     with progress:
         task = progress.add_task("", total=len(all_ids))
         while True:
-            poll_response = requests.get(f'{URL_ROOT}/poll-jobs', json=poll_payload)
+            poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload)
             poll_response.raise_for_status()
             poll_results = process_poll_response(poll_response.json(), all_ids)
             progress.update(task, completed=len(poll_results['running']) + len(poll_results['completed']))
@@ -102,7 +102,7 @@ def wait_for_completion(all_ids: list[str], auth_token: str, run_id: str, consol
     with progress:
         task = progress.add_task("", total=len(all_ids))
         while True:
-            poll_response = requests.get(f'{URL_ROOT}/poll-jobs', json=poll_payload)
+            poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload)
             poll_response.raise_for_status()
             poll_results = process_poll_response(poll_response.json(), all_ids)
             progress.update(task, completed=len(poll_results['completed']))
@@ -150,7 +150,7 @@ def submit(
         "instance_ids": instance_ids,
         "run_id": run_id
     }
-    response = requests.post(f'{URL_ROOT}/submit', json=payload)
+    response = requests.post(f'{API_BASE_URL}/submit', json=payload)
     if response.status_code != 202:
         raise ValueError(f"Error submitting predictions: {response.text}")
     launch_data = response.json()

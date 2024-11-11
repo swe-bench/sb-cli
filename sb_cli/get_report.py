@@ -4,7 +4,7 @@ import requests
 import typer
 from pathlib import Path
 from typing import Optional
-from .constants import URL_ROOT
+from .constants import API_BASE_URL
 from rich.console import Console
 
 app = typer.Typer(help="Get the evaluation report for a specific run")
@@ -73,7 +73,7 @@ def get_report(
     }
     console = Console()
     with console.status(f"[bold blue]Creating report for run {run_id}...", spinner="dots"):
-        response = requests.post(f"{URL_ROOT}/get-report", json=payload)
+        response = requests.post(f"{API_BASE_URL}/get-report", json=payload)
         response.raise_for_status()
         response = response.json()
     report = response.pop('report')
