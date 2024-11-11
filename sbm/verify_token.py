@@ -1,6 +1,7 @@
 import requests
 import typer
 from typing import Optional
+from .constants import URL_ROOT
 
 app = typer.Typer()
 
@@ -14,7 +15,7 @@ def verify(
             'auth_token': auth_token,
             'verification_code': verification_code
         }
-        response = requests.post("https://api.swebench.com/verify-token", json=payload)
+        response = requests.post(f"{URL_ROOT}/verify-token", json=payload)
         response.raise_for_status()  # Raise an exception for bad status codes
         typer.echo(response.json())
     except requests.RequestException as e:

@@ -1,5 +1,6 @@
 import requests
 import typer
+from .constants import URL_ROOT
 
 app = typer.Typer(help="Get an authentication token for accessing the SWE-bench M API")
 
@@ -19,10 +20,10 @@ def get_token(
     payload = {
         'email': email,
     }
-    response = requests.post('https://api.swebench.com/gen-auth-token', json=payload)
+    response = requests.post(f'{URL_ROOT}/gen-auth-token', json=payload)
     result = response.json()
     if response.status_code != 200:
-        typer.secho(f"Error: {response.status_code} - {result['error']}", fg="red", err=True)
+        typer.secho(f"Error: {response.status_code} - {result['message']}", fg="red", err=True)
         raise typer.Exit(1)
     message = result['message']
     auth_token = result['auth_token']

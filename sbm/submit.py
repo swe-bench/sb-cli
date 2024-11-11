@@ -5,6 +5,7 @@ import typer
 from typing import Optional, List
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.console import Console
+from .constants import URL_ROOT
 
 app = typer.Typer(help="Submit predictions to the SBM API")
 
@@ -100,7 +101,7 @@ def submit(
         
         while True:
             # Remove task creation from here
-            poll_response = requests.get('https://api.swebench.com/poll-jobs', json=poll_payload)
+            poll_response = requests.get(f'{URL_ROOT}/poll-jobs', json=poll_payload)
             poll_response.raise_for_status()
             submitted = len(set(poll_response.json()['submitted']) & set(all_ids))
             # Update progress

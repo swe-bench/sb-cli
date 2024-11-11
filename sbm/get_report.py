@@ -4,15 +4,18 @@ import requests
 import typer
 from pathlib import Path
 from typing import Optional
+from .constants import URL_ROOT
+from rich.console import Console
+from rich.spinner import Spinner
 
 app = typer.Typer(help="Get the evaluation report for a specific run")
 
 def safe_save_json(data: dict, file_path: str, overwrite: bool = False):
     if Path(file_path).exists() and not overwrite:
         ext = 1
-        while Path(f"{file_path}.json-{ext}").exists():
+        while Path(file_path).with_suffix(f".json-{ext}").exists():
             ext += 1
-        file_path = f"{file_path}.json-{ext}"
+        file_path = file_path.with_suffix(f".json-{ext}")
     with open(file_path, 'w') as f:
         json.dump(data, f, indent=4)
     typer.echo(f"Saved report to {file_path}")
@@ -23,8 +26,8 @@ def get_str_report(report: dict) -> dict:
     resolved_submitted = (report['resolved_instances'] / report['submitted_instances']) if report['submitted_instances'] > 0 else 0 
     submitted = report['submitted_instances'] / report['total_instances']
     return (
-        f"Resolved (total): {resolved_total:.2%} ({report['resolved_instances']})\n"
-        f"Resolved (submitted): {resolved_submitted:.2%} ({report['resolved_instances']})\n"
+        f"Resolved (total): {resolved_total:.2%} ({report['total_instances']})\n"
+        f"Resolved (submitted): {resolved_submitted:.2%} ({report['submitted_instances']})\n"
         f"Submitted: {submitted:.2%} ({report['submitted_instances']})\n"
         f"Errors: {report['error_instances']}\n"
         f"Pending: {report['pending_instances']}\n"
@@ -53,9 +56,13 @@ def get_report(
         'run_id': run_id,
         **kwargs
     }
-    response = requests.post("https://api.swebench.com/get-report", json=payload)
-    response.raise_for_status()
-    response = response.json()
+    # function_url = "https://api.swebench.com/get-report"
+    function_url = f'{URL_ROOT}/get-report'
+    console = Console()
+    with console.status(f"[bold blue]Fetching report for run {run_id}...", spinner="dots"):
+        response = requests.post(function_url, json=payload)
+        response.raise_for_status()
+        response = response.json()
     report = response.pop('report')
     typer.echo(get_str_report(report))
     safe_save_json(report, f"{run_id}.json", overwrite)
