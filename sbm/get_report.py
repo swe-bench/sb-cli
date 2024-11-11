@@ -38,9 +38,19 @@ def get_str_report(report: dict) -> dict:
 
 def get_report(
     run_id: str = typer.Argument(..., help="Run ID"),
-    auth_token: Optional[str] = typer.Option(None, '--auth_token', help="Auth token to verify", envvar="SWEBENCH_API_KEY"),
+    auth_token: Optional[str] = typer.Option(
+        None,
+        '--auth_token',
+        help="Auth token to verify",
+        envvar="SWEBENCH_API_KEY"
+    ),
     overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
-    extra_args: Optional[list[str]] = typer.Option(None, '--extra_args', '-e', help="Additional arguments in the format KEY=VALUE")
+    extra_args: Optional[list[str]] = typer.Option(
+        None,
+        '--extra_args',
+        '-e',
+        help="Additional arguments in the format KEY=VALUE"
+    )
 ):
     """Get report for a run from the run ID"""
     kwargs = {}
@@ -56,11 +66,9 @@ def get_report(
         'run_id': run_id,
         **kwargs
     }
-    # function_url = "https://api.swebench.com/get-report"
-    function_url = f'{URL_ROOT}/get-report'
     console = Console()
-    with console.status(f"[bold blue]Fetching report for run {run_id}...", spinner="dots"):
-        response = requests.post(function_url, json=payload)
+    with console.status(f"[bold blue]Creating report for run {run_id}...", spinner="dots"):
+        response = requests.post(f"{URL_ROOT}/get-report", json=payload)
         response.raise_for_status()
         response = response.json()
     report = response.pop('report')

@@ -6,6 +6,7 @@ from typing import Optional, List
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.console import Console
 from .constants import URL_ROOT
+from .get_report import get_report
 
 app = typer.Typer(help="Submit predictions to the SBM API")
 
@@ -42,6 +43,79 @@ def process_predictions(predictions_path: str, instance_ids: list[str]):
     return {p['instance_id']: p for p in preds}
 
 
+def process_poll_response(results: dict, all_ids: list[str]):
+    running_ids = set(results['running']) & set(all_ids)
+    completed_ids = set(results['completed']) & set(all_ids)
+    pending_ids = set(all_ids) - running_ids - completed_ids
+    return {
+        'running': list(running_ids),
+        'completed': list(completed_ids),
+        'pending': list(pending_ids)
+    }
+    
+    
+def wait_for_running(all_ids: list[str], auth_token: str, run_id: str, console: Console, timeout):
+    """Spin a progress bar until no predictions are pending."""
+    poll_payload = {
+        'auth_token': auth_token,
+        'run_id': run_id
+    }
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]Processing submission..."),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    )
+    start_time = time.time()
+    with progress:
+        task = progress.add_task("", total=len(all_ids))
+        while True:
+            poll_response = requests.get(f'{URL_ROOT}/poll-jobs', json=poll_payload)
+            poll_response.raise_for_status()
+            poll_results = process_poll_response(poll_response.json(), all_ids)
+            progress.update(task, completed=len(poll_results['running']) + len(poll_results['completed']))
+            if len(poll_results['pending']) == 0:
+                break
+            elif time.time() - start_time > timeout:
+                raise ValueError("Submission timed out")
+            else:
+                time.sleep(8)
+        progress.stop()
+    console.print("[bold green]✓ Submission complete![/]")
+
+
+def wait_for_completion(all_ids: list[str], auth_token: str, run_id: str, console: Console, timeout):
+    """Spin a progress bar until all predictions are complete."""
+    poll_payload = {
+        'auth_token': auth_token,
+        'run_id': run_id
+    }
+    progress = Progress(
+        SpinnerColumn(),
+        TextColumn("[bold blue]Evaluating predictions..."),
+        BarColumn(),
+        TaskProgressColumn(),
+        console=console,
+    )
+    start_time = time.time()
+    with progress:
+        task = progress.add_task("", total=len(all_ids))
+        while True:
+            poll_response = requests.get(f'{URL_ROOT}/poll-jobs', json=poll_payload)
+            poll_response.raise_for_status()
+            poll_results = process_poll_response(poll_response.json(), all_ids)
+            progress.update(task, completed=len(poll_results['completed']))
+            if len(poll_results['completed']) == len(all_ids):
+                break
+            elif time.time() - start_time > timeout:
+                raise ValueError("Evaluation waiter timed out - re-run the command to continue waiting")
+            else:
+                time.sleep(15)
+        progress.stop()
+    console.print("[bold green]✓ Evaluation complete![/]")
+        
+
 def submit(
     predictions_path: str = typer.Option(
         ..., 
@@ -60,6 +134,16 @@ def submit(
         '--instance_ids',
         help="Instance ID subset to submit predictions - (defaults to all submitted instances)",
         callback=lambda x: x.split(',') if x else None  # Split comma-separated string into list
+    ),
+    watch: bool = typer.Option(
+        True,
+        '--watch/--no-watch',
+        help="Watch the submission until evaluation is complete"
+    ),
+    report: bool = typer.Option(
+        True,
+        '--report/--no-report',
+        help="Generate a report after evaluation is complete"
     )
 ):
     """Submit predictions to the SWE-bench M API."""
@@ -71,56 +155,14 @@ def submit(
         "instance_ids": instance_ids,
         "run_id": run_id
     }
-    
-    console = Console()
-    progress = Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]Submitting predictions..."),
-        BarColumn(),
-        TaskProgressColumn(),
-        console=console,
-    )
-
-    # function_url = "https://api.swebench.com/submit"
-    # function_url = 'https://zackrtimj6lcc427vggtkcnt3a0dlpkr.lambda-url.us-east-2.on.aws/'
-    function_url = 'https://c6m4oi2ge4wy7nai5sltviscf40mjjeh.lambda-url.us-east-2.on.aws/'
-    response = requests.post(function_url, json=payload)
+    response = requests.post(f'{URL_ROOT}/submit', json=payload)
     if response.status_code != 202:
         raise ValueError(f"Error submitting predictions: {response.text}")
     launch_data = response.json()
     all_ids = launch_data['new_ids'] + launch_data['completed_ids']
-    total = len(all_ids)
-    poll_payload = {
-        'auth_token': auth_token,
-        'run_id': run_id
-    }
-    start_time = time.time()
-    timeout = 60 * 5
-    succeeded = False
-    with progress:
-        task = progress.add_task("", total=total)
-        
-        while True:
-            poll_response = requests.get(f'{URL_ROOT}/poll-jobs', json=poll_payload)
-            poll_response.raise_for_status()
-            submitted = len(set(poll_response.json()['submitted']) & set(all_ids))
-            progress.update(task, 
-                total=total,
-                completed=submitted
-            )
-            
-            if submitted == total:
-                succeeded = True
-                break
-            elif time.time() - start_time > timeout:
-                succeeded = False
-                break
-            else:
-                time.sleep(5)
-        
-        progress.stop()
-        
-    if succeeded:
-        console.print("[bold green]✓ Submission complete![/]")
-    else:
-        console.print("[bold red]✗ Submission failed![/]")
+    console = Console()
+    wait_for_running(all_ids, auth_token, run_id, console, timeout=60 * 5)
+    if watch:
+        wait_for_completion(all_ids, auth_token, run_id, console, timeout=60 * 30)
+    if report:
+        get_report(run_id, auth_token, extra_args=None)
