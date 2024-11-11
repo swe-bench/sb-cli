@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/sb-cli-logo.png" alt="SWE-bench CLI Logo" style="max-width: 100%; max-height: 250px;">
+  <img src="assets/sb-cli-logo.png" alt="SWE-bench CLI Logo" style="width: 35%">
 </p>
 
 
