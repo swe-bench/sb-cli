@@ -135,11 +135,6 @@ def submit(
         help="Instance ID subset to submit predictions - (defaults to all submitted instances)",
         callback=lambda x: x.split(',') if x else None  # Split comma-separated string into list
     ),
-    watch: bool = typer.Option(
-        True,
-        '--watch/--no-watch',
-        help="Watch the submission until evaluation is complete"
-    ),
     report: bool = typer.Option(
         True,
         '--report/--no-report',
@@ -162,7 +157,6 @@ def submit(
     all_ids = launch_data['new_ids'] + launch_data['completed_ids']
     console = Console()
     wait_for_running(all_ids, auth_token, run_id, console, timeout=60 * 5)
-    if watch:
-        wait_for_completion(all_ids, auth_token, run_id, console, timeout=60 * 30)
     if report:
+        wait_for_completion(all_ids, auth_token, run_id, console, timeout=60 * 30)
         get_report(run_id, auth_token, extra_args=None)

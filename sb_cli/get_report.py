@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import Optional
 from .constants import URL_ROOT
 from rich.console import Console
-from rich.spinner import Spinner
 
 app = typer.Typer(help="Get the evaluation report for a specific run")
 
@@ -45,6 +44,12 @@ def get_report(
         envvar="SWEBENCH_API_KEY"
     ),
     overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
+    output_dir: Optional[str] = typer.Option(
+        None,
+        '--output_dir',
+        '-o',
+        help="Directory to save report files"
+    ),
     extra_args: Optional[list[str]] = typer.Option(
         None,
         '--extra_args',
@@ -73,6 +78,16 @@ def get_report(
         response = response.json()
     report = response.pop('report')
     typer.echo(get_str_report(report))
-    safe_save_json(report, f"{run_id}.json", overwrite)
+    
+    if output_dir:
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+        report_path = output_path / f"{run_id}.json"
+        response_path = output_path / f"{run_id}.response.json"
+    else:
+        report_path = Path(f"{run_id}.json")
+        response_path = Path(f"{run_id}.response.json")
+        
+    safe_save_json(report, str(report_path), overwrite)
     if response:
-        safe_save_json(response, f"{run_id}.response.json", False)
+        safe_save_json(response, str(response_path), False)
