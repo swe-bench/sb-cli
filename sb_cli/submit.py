@@ -135,6 +135,13 @@ def submit(
         help="Instance ID subset to submit predictions - (defaults to all submitted instances)",
         callback=lambda x: x.split(',') if x else None  # Split comma-separated string into list
     ),
+    output_dir: Optional[str] = typer.Option(
+        'sb-cli-reports',
+        '--output_dir',
+        '-o',
+        help="Directory to save report files"
+    ),
+    overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
     report: bool = typer.Option(
         True,
         '--report/--no-report',
@@ -142,6 +149,7 @@ def submit(
     )
 ):
     """Submit predictions to the SWE-bench M API."""
+    console = Console()
     predictions = process_predictions(predictions_path, instance_ids)
     payload = {
         "auth_token": auth_token,
@@ -150,13 +158,22 @@ def submit(
         "instance_ids": instance_ids,
         "run_id": run_id
     }
-    response = requests.post(f'{API_BASE_URL}/submit', json=payload)
+    response = requests.post(f'{API_BASE_URL}/submit', json=payload)    
     if response.status_code != 202:
         raise ValueError(f"Error submitting predictions: {response.text}")
     launch_data = response.json()
     all_ids = launch_data['new_ids'] + launch_data['completed_ids']
-    console = Console()
+    if len(launch_data['completed_ids']) > 0:
+        console.print(f'[bold yellow]Warning: {len(launch_data["completed_ids"])} predictions already submitted. These will not be re-evaluated[/]')
+    if len(launch_data['new_ids']) > 0:
+        console.print(f'[bold green]✓ {len(launch_data["new_ids"])} new predictions uploaded[/]')
     wait_for_running(all_ids, auth_token, run_id, console, timeout=60 * 5)
     if report:
         wait_for_completion(all_ids, auth_token, run_id, console, timeout=60 * 30)
-        get_report(run_id, auth_token, extra_args=None)
+        get_report(
+            run_id=run_id,
+            auth_token=auth_token,
+            output_dir=output_dir,
+            overwrite=overwrite,
+            extra_args=None,
+        )

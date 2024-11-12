@@ -45,27 +45,24 @@ def get_report(
     ),
     overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
     output_dir: Optional[str] = typer.Option(
-        None,
+        'sb-cli-reports',
         '--output_dir',
         '-o',
         help="Directory to save report files"
     ),
-    extra_args: Optional[list[str]] = typer.Option(
-        None,
-        '--extra_args',
+    extra_args: Optional[str] = typer.Option(
+        '',
+        '--extra_arg',
         '-e',
-        help="Additional arguments in the format KEY=VALUE"
+        help="Additional argument in the format KEY=VALUE",
     )
 ):
     """Get report for a run from the run ID"""
     kwargs = {}
-    if extra_args:
-        for arg in extra_args:
-            try:
-                key, value = arg.split('=', 1)
-                kwargs[key] = value
-            except ValueError:
-                typer.echo(f"Warning: Skipping malformed argument: {arg}")
+    if isinstance(extra_args, str):
+        kwargs = {arg.split('=')[0]: arg.split('=')[1] for arg in extra_args.split(',')}
+    elif extra_args:
+        raise ValueError(f"Invalid extra arguments: has type {type(extra_args)}")
     payload = {
         'auth_token': auth_token,
         'run_id': run_id,
