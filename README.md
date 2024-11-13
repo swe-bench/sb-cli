@@ -21,14 +21,15 @@ Before using the CLI, you'll need to get an authentication token:
 sb-cli get-auth-token your.email@example.com
 ```
 
-2. You'll receive an email with a verification code. Verify your token:
-```bash
-sb-cli verify-token YOUR_VERIFICATION_CODE
-```
-
-3. Set your authentication token as an environment variable - and store it somewhere safe!
+2. Set your authentication token as an environment variable - and store it somewhere safe!
 ```bash
 export SWEBENCH_API_KEY=your_auth_token
+# or add export SWEBENCH_API_KEY=your_auth_token to your .*rc file
+```
+
+3. You'll receive an email with a verification code. Verify your token:
+```bash
+sb-cli verify-token YOUR_VERIFICATION_CODE
 ```
 
 ## Usage
