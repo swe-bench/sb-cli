@@ -1,19 +1,20 @@
 import typer
+
+app = typer.Typer(help="CLI tool for interacting with the SWE-bench M API")
+
 from . import (
-    gen_auth_token,
+    gen_api_key,
     get_report,
     list_runs,
     submit,
-    verify_token
+    verify_api_key
 )
-
-app = typer.Typer(help="CLI tool for interacting with the SWE-bench M API")
 
 app.command(name="get-report")(get_report.get_report)
 app.command(name="list-runs")(list_runs.list_runs)
 app.command(name="submit")(submit.submit)
-app.command(name="verify-token")(verify_token.verify)
-app.command(name="get-auth-token")(gen_auth_token.get_token)
+app.command(name="verify-api-key")(verify_api_key.verify)
+app.command(name="gen-api-key")(gen_api_key.gen_api_key)
 
 def main():
     """Run the SWE-bench CLI application"""

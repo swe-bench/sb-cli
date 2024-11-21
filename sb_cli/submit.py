@@ -5,8 +5,9 @@ import typer
 from typing import Optional, List
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.console import Console
-from .constants import API_BASE_URL
-from .get_report import get_report
+from sb_cli.config import API_BASE_URL
+from sb_cli.get_report import get_report
+from sb_cli.utils import verify_response
 
 app = typer.Typer(help="Submit predictions to the SBM API")
 
@@ -54,10 +55,12 @@ def process_poll_response(results: dict, all_ids: list[str]):
     }
     
     
-def wait_for_running(all_ids: list[str], auth_token: str, run_id: str, console: Console, timeout):
+def wait_for_running(all_ids: list[str], api_key: str, run_id: str, console: Console, timeout):
     """Spin a progress bar until no predictions are pending."""
+    headers = {
+        "x-api-key": api_key
+    }
     poll_payload = {
-        'auth_token': auth_token,
         'run_id': run_id
     }
     progress = Progress(
@@ -71,8 +74,8 @@ def wait_for_running(all_ids: list[str], auth_token: str, run_id: str, console: 
     with progress:
         task = progress.add_task("", total=len(all_ids))
         while True:
-            poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload)
-            poll_response.raise_for_status()
+            poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload, headers=headers)
+            verify_response(poll_response)
             poll_results = process_poll_response(poll_response.json(), all_ids)
             progress.update(task, completed=len(poll_results['running']) + len(poll_results['completed']))
             if len(poll_results['pending']) == 0:
@@ -85,10 +88,12 @@ def wait_for_running(all_ids: list[str], auth_token: str, run_id: str, console: 
     console.print("[bold green]✓ Submission complete![/]")
 
 
-def wait_for_completion(all_ids: list[str], auth_token: str, run_id: str, console: Console, timeout):
+def wait_for_completion(all_ids: list[str], api_key: str, run_id: str, console: Console, timeout):
     """Spin a progress bar until all predictions are complete."""
+    headers = {
+        "x-api-key": api_key
+    }
     poll_payload = {
-        'auth_token': auth_token,
         'run_id': run_id
     }
     progress = Progress(
@@ -102,8 +107,8 @@ def wait_for_completion(all_ids: list[str], auth_token: str, run_id: str, consol
     with progress:
         task = progress.add_task("", total=len(all_ids))
         while True:
-            poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload)
-            poll_response.raise_for_status()
+            poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload, headers=headers)
+            verify_response(poll_response)
             poll_results = process_poll_response(poll_response.json(), all_ids)
             progress.update(task, completed=len(poll_results['completed']))
             if len(poll_results['completed']) == len(all_ids):
@@ -123,10 +128,10 @@ def submit(
         help="Path to the predictions file"
     ),
     run_id: str = typer.Option(..., '--run_id', help="Run ID for the predictions"),
-    auth_token: Optional[str] = typer.Option(
+    api_key: Optional[str] = typer.Option(
         None, 
-        '--auth_token', 
-        help="Auth token to use - (defaults to SWEBENCH_API_KEY)", 
+        '--api_key', 
+        help="API key to use - (defaults to SWEBENCH_API_KEY)", 
         envvar="SWEBENCH_API_KEY"
     ),
     instance_ids: Optional[str] = typer.Option(
@@ -151,28 +156,29 @@ def submit(
     """Submit predictions to the SWE-bench M API."""
     console = Console()
     predictions = process_predictions(predictions_path, instance_ids)
+    headers = {
+        "x-api-key": api_key
+    }
     payload = {
-        "auth_token": auth_token,
         "predictions": predictions,
         "split": "dev",
         "instance_ids": instance_ids,
         "run_id": run_id
     }
-    response = requests.post(f'{API_BASE_URL}/submit', json=payload)    
-    if response.status_code != 202:
-        raise ValueError(f"Error submitting predictions: {response.text}")
+    response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
+    verify_response(response)
     launch_data = response.json()
     all_ids = launch_data['new_ids'] + launch_data['completed_ids']
     if len(launch_data['completed_ids']) > 0:
         console.print(f'[bold yellow]Warning: {len(launch_data["completed_ids"])} predictions already submitted. These will not be re-evaluated[/]')
     if len(launch_data['new_ids']) > 0:
         console.print(f'[bold green]✓ {len(launch_data["new_ids"])} new predictions uploaded[/]')
-    wait_for_running(all_ids, auth_token, run_id, console, timeout=60 * 5)
+    wait_for_running(all_ids, api_key, run_id, console, timeout=60 * 5)
     if report:
-        wait_for_completion(all_ids, auth_token, run_id, console, timeout=60 * 30)
+        wait_for_completion(all_ids, api_key, run_id, console, timeout=60 * 30)
         get_report(
             run_id=run_id,
-            auth_token=auth_token,
+            api_key=api_key,
             output_dir=output_dir,
             overwrite=overwrite,
             extra_args=None,

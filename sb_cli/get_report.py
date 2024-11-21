@@ -4,8 +4,9 @@ import requests
 import typer
 from pathlib import Path
 from typing import Optional
-from .constants import API_BASE_URL
 from rich.console import Console
+from sb_cli.config import API_BASE_URL
+from sb_cli.utils import verify_response
 
 app = typer.Typer(help="Get the evaluation report for a specific run")
 
@@ -25,8 +26,8 @@ def get_str_report(report: dict) -> dict:
     resolved_submitted = (report['resolved_instances'] / report['submitted_instances']) if report['submitted_instances'] > 0 else 0 
     submitted = report['submitted_instances'] / report['total_instances']
     return (
-        f"Resolved (total): {resolved_total:.2%} ({report['total_instances']})\n"
-        f"Resolved (submitted): {resolved_submitted:.2%} ({report['submitted_instances']})\n"
+        f"Resolved (total): {resolved_total:.2%} ({report['resolved_instances']} / {report['total_instances']})\n"
+        f"Resolved (submitted): {resolved_submitted:.2%} ({report['resolved_instances']} / {report['submitted_instances']})\n"
         f"Submitted: {submitted:.2%} ({report['submitted_instances']})\n"
         f"Errors: {report['error_instances']}\n"
         f"Pending: {report['pending_instances']}\n"
@@ -37,10 +38,10 @@ def get_str_report(report: dict) -> dict:
 
 def get_report(
     run_id: str = typer.Argument(..., help="Run ID"),
-    auth_token: Optional[str] = typer.Option(
+    api_key: Optional[str] = typer.Option(
         None,
-        '--auth_token',
-        help="Auth token to verify",
+        '--api_key',
+        help="API key to use",
         envvar="SWEBENCH_API_KEY"
     ),
     overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
@@ -59,19 +60,19 @@ def get_report(
 ):
     """Get report for a run from the run ID"""
     kwargs = {}
-    if isinstance(extra_args, str):
+    if extra_args and isinstance(extra_args, str):
         kwargs = {arg.split('=')[0]: arg.split('=')[1] for arg in extra_args.split(',')}
     elif extra_args:
         raise ValueError(f"Invalid extra arguments: has type {type(extra_args)}")
     payload = {
-        'auth_token': auth_token,
         'run_id': run_id,
         **kwargs
     }
+    headers = {'x-api-key': api_key} if api_key else {}
     console = Console()
     with console.status(f"[bold blue]Creating report for run {run_id}...", spinner="dots"):
-        response = requests.post(f"{API_BASE_URL}/get-report", json=payload)
-        response.raise_for_status()
+        response = requests.post(f"{API_BASE_URL}/get-report", json=payload, headers=headers)
+        verify_response(response)
         response = response.json()
     report = response.pop('report')
     typer.echo(get_str_report(report))

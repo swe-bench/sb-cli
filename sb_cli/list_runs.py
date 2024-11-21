@@ -2,21 +2,20 @@ import os
 import requests
 import typer
 from typing import Optional
-from .constants import API_BASE_URL
+from sb_cli.config import API_BASE_URL
+from sb_cli.utils import verify_response
 
 app = typer.Typer(help="List all existing run IDs", name="list-runs")
 
-def list_runs(auth_token: Optional[str] = typer.Option(None, help="Auth token to verify", envvar="SWEBENCH_API_KEY")):
+def list_runs(api_key: Optional[str] = typer.Option(None, help="API key to use", envvar="SWEBENCH_API_KEY")):
     """List all existing run IDs in your account"""
-    payload = {
-        "auth_token": auth_token
+    headers = {
+        "x-api-key": api_key
     }
-    response = requests.post(f"{API_BASE_URL}/list-runs", json=payload)
+    response = requests.post(f"{API_BASE_URL}/list-runs", headers=headers)
+    verify_response(response)
     result = response.json()
-    if response.status_code != 200:
-        typer.secho(f"Error: {result['message']}", fg="red", err=True)
-        raise typer.Exit(1)
-    elif len(result['run_ids']) == 0:
+    if len(result['run_ids']) == 0:
         typer.echo("No runs found")
     else:
         typer.echo("Run IDs:")

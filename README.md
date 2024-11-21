@@ -14,22 +14,22 @@ pip install sb-cli
 
 ## Authentication
 
-Before using the CLI, you'll need to get an authentication token:
+Before using the CLI, you'll need to get an API key:
 
-1. Generate a token:
+1. Generate an API key:
 ```bash
-sb-cli get-auth-token your.email@example.com
+sb-cli get-api-key your.email@example.com
 ```
 
-2. Set your authentication token as an environment variable - and store it somewhere safe!
+2. Set your API key as an environment variable - and store it somewhere safe!
 ```bash
-export SWEBENCH_API_KEY=your_auth_token
-# or add export SWEBENCH_API_KEY=your_auth_token to your .*rc file
+export SWEBENCH_API_KEY=your_api_key
+# or add export SWEBENCH_API_KEY=your_api_key to your .*rc file
 ```
 
-3. You'll receive an email with a verification code. Verify your token:
+3. You'll receive an email with a verification code. Verify your API key:
 ```bash
-sb-cli verify-token YOUR_VERIFICATION_CODE
+sb-cli verify-api-key YOUR_VERIFICATION_CODE
 ```
 
 ## Usage
