@@ -5,7 +5,7 @@ import typer
 from pathlib import Path
 from typing import Optional
 from rich.console import Console
-from sb_cli.config import API_BASE_URL
+from sb_cli.config import API_BASE_URL, Subset
 from sb_cli.utils import verify_response
 
 app = typer.Typer(help="Get the evaluation report for a specific run")
@@ -13,9 +13,10 @@ app = typer.Typer(help="Get the evaluation report for a specific run")
 def safe_save_json(data: dict, file_path: Path, overwrite: bool = False):
     if file_path.exists() and not overwrite:
         ext = 1
-        while file_path.with_suffix(f".json-{ext}").exists():
+        base_stem = file_path.stem
+        while (file_path.parent / f"{base_stem}-{ext}.json").exists():
             ext += 1
-        file_path = file_path.with_suffix(f".json-{ext}")
+        file_path = file_path.parent / f"{base_stem}-{ext}.json"
     with open(file_path, 'w') as f:
         json.dump(data, f, indent=4)
     return file_path
@@ -38,6 +39,16 @@ def get_str_report(report: dict) -> dict:
 
 def get_report(
     run_id: str = typer.Argument(..., help="Run ID"),
+    subset: Subset = typer.Argument(
+        help="Subset to evaluate",
+        callback=lambda x: x.value if isinstance(x, Subset) else x
+    ),
+    split: str = typer.Option(
+        "dev",
+        "--split",
+        "-s",
+        help="Split to evaluate"
+    ),
     api_key: Optional[str] = typer.Option(
         None,
         '--api_key',
@@ -62,10 +73,12 @@ def get_report(
     kwargs = {}
     if extra_args and isinstance(extra_args, str):
         kwargs = {arg.split('=')[0]: arg.split('=')[1] for arg in extra_args.split(',')}
-    elif extra_args:
+    elif not isinstance(extra_args, typer.models.OptionInfo):
         raise ValueError(f"Invalid extra arguments: has type {type(extra_args)}")
     payload = {
         'run_id': run_id,
+        'subset': subset,
+        'split': split,
         **kwargs
     }
     headers = {'x-api-key': api_key} if api_key else {}
@@ -76,15 +89,16 @@ def get_report(
         response = response.json()
     report = response.pop('report')
     typer.echo(get_str_report(report))
+    report_name = f"{subset}__{split}__{run_id}"
     
     if output_dir:
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
-        report_path = output_path / f"{run_id}.json"
-        response_path = output_path / f"{run_id}.response.json"
+        report_path = output_path / f"{report_name}.json"
+        response_path = output_path / f"{report_name}.response.json"
     else:
-        report_path = Path(f"{run_id}.json")
-        response_path = Path(f"{run_id}.response.json")
+        report_path = Path(f"{report_name}.json")
+        response_path = Path(f"{report_name}.response.json")
         
     report_path = safe_save_json(report, report_path, overwrite)
     typer.echo(f"Saved full report to {report_path}!")

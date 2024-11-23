@@ -43,7 +43,7 @@ sb-cli submit --predictions_path predictions.json --run_id my_run_id
 ```
 
 > **Note:** By default, the CLI will watch the submission until evaluation is complete and generate a report.
-> You can disable this behavior with the `--no-report` flag.
+> You can disable this behavior with `--gen_report False`.
 
 ### Get Report
 

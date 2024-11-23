@@ -2,10 +2,10 @@ import json
 import time
 import requests
 import typer
-from typing import Optional, List
+from typing import Optional
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.console import Console
-from sb_cli.config import API_BASE_URL
+from sb_cli.config import API_BASE_URL, Subset
 from sb_cli.get_report import get_report
 from sb_cli.utils import verify_response
 
@@ -55,13 +55,24 @@ def process_poll_response(results: dict, all_ids: list[str]):
     }
     
     
-def wait_for_running(all_ids: list[str], api_key: str, run_id: str, console: Console, timeout):
+def wait_for_running(
+    *,
+    all_ids: list[str], 
+    api_key: str, 
+    subset: str,
+    split: str,
+    run_id: str, 
+    console: Console, 
+    timeout
+):
     """Spin a progress bar until no predictions are pending."""
     headers = {
         "x-api-key": api_key
     }
     poll_payload = {
-        'run_id': run_id
+        'run_id': run_id,
+        'subset': subset,
+        'split': split
     }
     progress = Progress(
         SpinnerColumn(),
@@ -88,13 +99,24 @@ def wait_for_running(all_ids: list[str], api_key: str, run_id: str, console: Con
     console.print("[bold green]✓ Submission complete![/]")
 
 
-def wait_for_completion(all_ids: list[str], api_key: str, run_id: str, console: Console, timeout):
+def wait_for_completion(
+    *,
+    all_ids: list[str], 
+    api_key: str, 
+    subset: str,
+    split: str,
+    run_id: str, 
+    console: Console, 
+    timeout
+):
     """Spin a progress bar until all predictions are complete."""
     headers = {
         "x-api-key": api_key
     }
     poll_payload = {
-        'run_id': run_id
+        'run_id': run_id,
+        'subset': subset,
+        'split': split
     }
     progress = Progress(
         SpinnerColumn(),
@@ -119,7 +141,7 @@ def wait_for_completion(all_ids: list[str], api_key: str, run_id: str, console: 
                 time.sleep(15)
         progress.stop()
     console.print("[bold green]✓ Evaluation complete![/]")
-        
+
 
 def submit(
     predictions_path: str = typer.Option(
@@ -128,11 +150,15 @@ def submit(
         help="Path to the predictions file"
     ),
     run_id: str = typer.Option(..., '--run_id', help="Run ID for the predictions"),
-    api_key: Optional[str] = typer.Option(
-        None, 
-        '--api_key', 
-        help="API key to use - (defaults to SWEBENCH_API_KEY)", 
-        envvar="SWEBENCH_API_KEY"
+    subset: Subset = typer.Option(
+        ...,
+        "--subset",
+        help="Subset to submit predictions for",
+    ),
+    split: str = typer.Option(
+        "dev",
+        "--split",
+        help="Split to submit predictions for"
     ),
     instance_ids: Optional[str] = typer.Option(
         None, 
@@ -146,12 +172,22 @@ def submit(
         '-o',
         help="Directory to save report files"
     ),
-    overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
-    report: bool = typer.Option(
+    overwrite: bool = typer.Option(
+        False, 
+        '--overwrite',
+        help="Overwrite existing report"
+    ),
+    gen_report: bool = typer.Option(
         True,
-        '--report/--no-report',
+        '--gen_report',
         help="Generate a report after evaluation is complete"
-    )
+    ),
+    api_key: Optional[str] = typer.Option(
+        None, 
+        '--api_key', 
+        help="API key to use - (defaults to SWEBENCH_API_KEY)", 
+        envvar="SWEBENCH_API_KEY"
+    ),
 ):
     """Submit predictions to the SWE-bench M API."""
     console = Console()
@@ -161,25 +197,43 @@ def submit(
     }
     payload = {
         "predictions": predictions,
-        "split": "dev",
+        "split": split,
+        "subset": subset,
         "instance_ids": instance_ids,
         "run_id": run_id
     }
-    response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
+    with console.status("[bold blue]Predictions sent. Waiting for confirmation...", spinner="dots"):
+        response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
     verify_response(response)
     launch_data = response.json()
     all_ids = launch_data['new_ids'] + launch_data['completed_ids']
     if len(launch_data['completed_ids']) > 0:
         console.print(f'[bold yellow]Warning: {len(launch_data["completed_ids"])} predictions already submitted. These will not be re-evaluated[/]')
     if len(launch_data['new_ids']) > 0:
-        console.print(f'[bold green]✓ {len(launch_data["new_ids"])} new predictions uploaded[/]')
-    wait_for_running(all_ids, api_key, run_id, console, timeout=60 * 5)
-    if report:
-        wait_for_completion(all_ids, api_key, run_id, console, timeout=60 * 30)
+        console.print(
+            f'[bold green]✓ {len(launch_data["new_ids"])} new predictions uploaded - these cannot be changed[/]'
+        )
+    run_metadata = {
+        'run_id': run_id,
+        'subset': subset.value,
+        'split': split,
+        'api_key': api_key
+    }
+    wait_for_running(
+        all_ids=all_ids, 
+        console=console, 
+        timeout=60 * 5,
+        **run_metadata
+    )
+    if gen_report:
+        wait_for_completion(
+            all_ids=all_ids, 
+            console=console, 
+            timeout=60 * 30,
+            **run_metadata
+        )
         get_report(
-            run_id=run_id,
-            api_key=api_key,
             output_dir=output_dir,
             overwrite=overwrite,
-            extra_args=None,
+            **run_metadata,
         )
