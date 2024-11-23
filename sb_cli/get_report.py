@@ -73,7 +73,7 @@ def get_report(
     kwargs = {}
     if extra_args and isinstance(extra_args, str):
         kwargs = {arg.split('=')[0]: arg.split('=')[1] for arg in extra_args.split(',')}
-    elif not isinstance(extra_args, typer.models.OptionInfo):
+    elif extra_args and not isinstance(extra_args, typer.models.OptionInfo):
         raise ValueError(f"Invalid extra arguments: has type {type(extra_args)}")
     payload = {
         'run_id': run_id,
