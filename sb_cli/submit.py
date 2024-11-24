@@ -89,7 +89,7 @@ def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
         SpinnerColumn(),
         TextColumn("[bold blue]Processing submission..."),
         BarColumn(),
-        TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.2f}%"),
+        TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.1f}%"),
         TimeElapsedColumn(),
         console=console,
     )
@@ -145,7 +145,7 @@ def wait_for_completion(
         SpinnerColumn(),
         TextColumn("[bold blue]Evaluating predictions..."),
         BarColumn(),
-        TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.2f}%"),
+        TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.1f}%"),
         TimeElapsedColumn(),
         console=console,
     )
