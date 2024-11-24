@@ -18,7 +18,7 @@ Before using the CLI, you'll need to get an API key:
 
 1. Generate an API key:
 ```bash
-sb-cli get-api-key your.email@example.com
+sb-cli gen-api-key your.email@example.com
 ```
 
 2. Set your API key as an environment variable - and store it somewhere safe!
@@ -32,6 +32,20 @@ export SWEBENCH_API_KEY=your_api_key
 sb-cli verify-api-key YOUR_VERIFICATION_CODE
 ```
 
+## Subsets and Splits
+
+SWE-bench has different subsets and splits available:
+
+### Subsets
+- `swe-bench-m`: The main dataset
+- `swe-bench_lite`: A smaller subset for testing and development
+
+### Splits
+- `dev`: Development/validation split
+- `test`: Test split (currently only available for `swe-bench_lite`)
+
+You'll need to specify both a subset and split for most commands.
+
 ## Usage
 
 ### Submit Predictions
@@ -39,26 +53,31 @@ sb-cli verify-api-key YOUR_VERIFICATION_CODE
 Submit your model's predictions to SWE-bench:
 
 ```bash
-sb-cli submit --predictions_path predictions.json --run_id my_run_id
+sb-cli submit swe-bench-m test \
+    --predictions_path predictions.json \
+    --run_id my_run_id
 ```
 
-> **Note:** By default, the CLI will watch the submission until evaluation is complete and generate a report.
-> You can disable this behavior with `--gen_report False`.
+Options:
+- `--instance_ids`: Comma-separated list of specific instance IDs to submit (optional)
+- `--output_dir`: Directory to save report files (default: sb-cli-reports)
+- `--overwrite`: Overwrite existing report
+- `--gen_report`: Generate a report after evaluation is complete (default: True)
 
 ### Get Report
 
 Retrieve evaluation results for a specific run:
 
 ```bash
-sb-cli get-report my_run_id -o ./reports
+sb-cli get-report swe-bench-m dev my_run_id -o ./reports
 ```
 
 ### List Runs
 
-View all your existing run IDs:
+View all your existing run IDs for a specific subset and split:
 
 ```bash
-sb-cli list-runs
+sb-cli list-runs swe-bench-m dev
 ```
 
 ## Predictions File Format
