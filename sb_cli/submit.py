@@ -4,7 +4,7 @@ import requests
 import typer
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn
 from rich.console import Console
 from sb_cli.config import API_BASE_URL, Subset
 from sb_cli.get_report import get_report
@@ -89,7 +89,8 @@ def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
         SpinnerColumn(),
         TextColumn("[bold blue]Processing submission..."),
         BarColumn(),
-        TaskProgressColumn(),
+        TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.2f}%"),
+        TimeElapsedColumn(),
         console=console,
     )
     start_time = time.time()
@@ -103,14 +104,32 @@ def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
             if len(poll_results['pending']) == 0:
                 break
             elif time.time() - start_time > timeout:
-                raise ValueError("Submission timed out")
+                # if progress is 0, raise an error, otherwise just print a warning
+                if progress.task_total == 0:
+                    raise ValueError((
+                        "Submission waiter timed out without making progress - this is probably a bug.\n"
+                        "Please submit a bug report at https://github.com/swe-bench/sb-cli/issues"
+                    ))
+                else:
+                    console.print(
+                        "[bold red]Submission waiter timed out - re-run the command to continue waiting[/]"
+                )
+                break
             else:
                 time.sleep(8)
         progress.stop()
     console.print("[bold green]✓ Submission complete![/]")
 
-def wait_for_completion(*, all_ids: list[str], api_key: str, subset: str,
-                       split: str, run_id: str, console: Console, timeout):
+def wait_for_completion(
+    *,
+    all_ids: list[str],
+    api_key: str,
+    subset: str,
+    split: str,
+    run_id: str,
+    console: Console,
+    timeout: int
+):
     """Spin a progress bar until all predictions are complete."""
     headers = {
         "x-api-key": api_key
@@ -124,7 +143,8 @@ def wait_for_completion(*, all_ids: list[str], api_key: str, subset: str,
         SpinnerColumn(),
         TextColumn("[bold blue]Evaluating predictions..."),
         BarColumn(),
-        TaskProgressColumn(),
+        TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.2f}%"),
+        TimeElapsedColumn(),
         console=console,
     )
     start_time = time.time()
@@ -138,7 +158,10 @@ def wait_for_completion(*, all_ids: list[str], api_key: str, subset: str,
             if len(poll_results['completed']) == len(all_ids):
                 break
             elif time.time() - start_time > timeout:
-                raise ValueError("Evaluation waiter timed out - re-run the command to continue waiting")
+                console.print(
+                    "[bold red]Evaluation waiter timed out - re-run the command to continue waiting[/]"
+                )
+                break
             else:
                 time.sleep(15)
         progress.stop()
@@ -206,7 +229,10 @@ def submit(
     all_ids = all_new_ids + all_completed_ids
     
     if len(all_completed_ids) > 0:
-        console.print(f'[bold yellow]Warning: {len(all_completed_ids)} predictions already submitted. These will not be re-evaluated[/]')
+        console.print((
+            f'[bold yellow]Warning: {len(all_completed_ids)} predictions already submitted. '
+            'These will not be re-evaluated[/]'
+        ))
     if len(all_new_ids) > 0:
         console.print(
             f'[bold green]✓ {len(all_new_ids)} new predictions uploaded[/][bold yellow] - these cannot be changed[/]'
@@ -228,7 +254,7 @@ def submit(
         wait_for_completion(
             all_ids=all_ids, 
             console=console, 
-            timeout=60 * 30,
+            timeout=60 * 1,
             **run_metadata
         )
         get_report(
