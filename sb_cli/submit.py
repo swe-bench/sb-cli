@@ -94,6 +94,7 @@ def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
         console=console,
     )
     start_time = time.time()
+    completion_message = "[bold green]✓ Submission complete![/]"
     with progress:
         task = progress.add_task("", total=len(all_ids))
         while True:
@@ -111,14 +112,15 @@ def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
                         "Please submit a bug report at https://github.com/swe-bench/sb-cli/issues"
                     ))
                 else:
-                    console.print(
-                        "[bold red]Submission waiter timed out - re-run the command to continue waiting[/]"
-                )
+                    completion_message = (
+                        '[bold red]x Submission waiter timed out, but some predictions may not have been submitted - '
+                        're-run submit to complete your submission[/]'
+                    )
                 break
             else:
                 time.sleep(8)
         progress.stop()
-    console.print("[bold green]✓ Submission complete![/]")
+    console.print(completion_message)
 
 def wait_for_completion(
     *,
@@ -148,6 +150,7 @@ def wait_for_completion(
         console=console,
     )
     start_time = time.time()
+    completion_message = "[bold green]✓ Evaluation complete![/]"
     with progress:
         task = progress.add_task("", total=len(all_ids))
         while True:
@@ -158,14 +161,12 @@ def wait_for_completion(
             if len(poll_results['completed']) == len(all_ids):
                 break
             elif time.time() - start_time > timeout:
-                console.print(
-                    "[bold red]Evaluation waiter timed out - re-run the command to continue waiting[/]"
-                )
+                completion_message = "[bold red]✗ Evaluation waiter timed out - re-run submit to continue waiting[/]"
                 break
             else:
                 time.sleep(15)
         progress.stop()
-    console.print("[bold green]✓ Evaluation complete![/]")
+    console.print(completion_message)
 
 # Main Submission Function
 def submit(
@@ -254,7 +255,7 @@ def submit(
         wait_for_completion(
             all_ids=all_ids, 
             console=console, 
-            timeout=60 * 1,
+            timeout=60 * 10,
             **run_metadata
         )
         get_report(
