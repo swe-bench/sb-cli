@@ -10,7 +10,7 @@ app = typer.Typer(help="List all existing run IDs", name="list-runs")
 
 def list_runs(
     subset: Subset = typer.Argument(..., help="Subset to list runs for"),
-    split: str = typer.Option("dev", help="Split to list runs for"),
+    split: str = typer.Argument(..., help="Split to list runs for"),
     api_key: Optional[str] = typer.Option(None, help="API key to use", envvar="SWEBENCH_API_KEY"),
 ):
     """List all existing run IDs in your account"""

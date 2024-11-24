@@ -3,6 +3,7 @@ import time
 import requests
 import typer
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn
 from rich.console import Console
 from sb_cli.config import API_BASE_URL, Subset
@@ -142,24 +143,36 @@ def wait_for_completion(
         progress.stop()
     console.print("[bold green]✓ Evaluation complete![/]")
 
+def chunk_dict(data: dict, chunk_size: int):
+    """Split dictionary into chunks of specified size."""
+    items = list(data.items())
+    for i in range(0, len(items), chunk_size):
+        chunk = dict(items[i:i + chunk_size])
+        yield chunk
+
+def submit_chunk(chunk: dict, headers: dict, payload_base: dict):
+    """Submit a single chunk of predictions."""
+    payload = payload_base.copy()
+    payload["predictions"] = chunk
+    response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
+    verify_response(response)
+    return response.json()
 
 def submit(
+    subset: Subset = typer.Argument(
+        ...,
+        help="Subset to submit predictions for",
+    ),
+    split: str = typer.Argument(
+        ...,
+        help="Split to submit predictions for"
+    ),
     predictions_path: str = typer.Option(
         ..., 
         '--predictions_path', 
         help="Path to the predictions file"
     ),
     run_id: str = typer.Option(..., '--run_id', help="Run ID for the predictions"),
-    subset: Subset = typer.Option(
-        ...,
-        "--subset",
-        help="Subset to submit predictions for",
-    ),
-    split: str = typer.Option(
-        "dev",
-        "--split",
-        help="Split to submit predictions for"
-    ),
     instance_ids: Optional[str] = typer.Option(
         None, 
         '--instance_ids',
@@ -195,24 +208,46 @@ def submit(
     headers = {
         "x-api-key": api_key
     }
-    payload = {
-        "predictions": predictions,
+    payload_base = {
         "split": split,
         "subset": subset,
         "instance_ids": instance_ids,
         "run_id": run_id
     }
+
+    # Split predictions into chunks of 50
+    prediction_chunks = list(chunk_dict(predictions, 50))
+    
+    all_new_ids = []
+    all_completed_ids = []
+    
     with console.status("[bold blue]Predictions sent. Waiting for confirmation...", spinner="dots"):
-        response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
-    verify_response(response)
-    launch_data = response.json()
-    all_ids = launch_data['new_ids'] + launch_data['completed_ids']
-    if len(launch_data['completed_ids']) > 0:
-        console.print(f'[bold yellow]Warning: {len(launch_data["completed_ids"])} predictions already submitted. These will not be re-evaluated[/]')
-    if len(launch_data['new_ids']) > 0:
+        with ThreadPoolExecutor(max_workers=5) as executor:
+            # Submit all chunks in parallel
+            future_to_chunk = {
+                executor.submit(submit_chunk, chunk, headers, payload_base): chunk 
+                for chunk in prediction_chunks
+            }
+            
+            # Collect results
+            for future in as_completed(future_to_chunk):
+                try:
+                    launch_data = future.result()
+                    all_new_ids.extend(launch_data['new_ids'])
+                    all_completed_ids.extend(launch_data['completed_ids'])
+                except Exception as e:
+                    console.print(f"[bold red]Error submitting chunk: {str(e)}[/]")
+                    raise e
+
+    all_ids = all_new_ids + all_completed_ids
+    
+    if len(all_completed_ids) > 0:
+        console.print(f'[bold yellow]Warning: {len(all_completed_ids)} predictions already submitted. These will not be re-evaluated[/]')
+    if len(all_new_ids) > 0:
         console.print(
-            f'[bold green]✓ {len(launch_data["new_ids"])} new predictions uploaded - these cannot be changed[/]'
+            f'[bold green]✓ {len(all_new_ids)} new predictions uploaded[/][bold yellow] - these cannot be changed[/]'
         )
+
     run_metadata = {
         'run_id': run_id,
         'subset': subset.value,

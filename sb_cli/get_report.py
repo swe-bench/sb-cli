@@ -38,17 +38,15 @@ def get_str_report(report: dict) -> dict:
 
 
 def get_report(
-    run_id: str = typer.Argument(..., help="Run ID"),
     subset: Subset = typer.Argument(
         help="Subset to evaluate",
         callback=lambda x: x.value if isinstance(x, Subset) else x
     ),
-    split: str = typer.Option(
-        "dev",
-        "--split",
-        "-s",
+    split: str = typer.Argument(
+        ...,
         help="Split to evaluate"
     ),
+    run_id: str = typer.Argument(..., help="Run ID"),
     api_key: Optional[str] = typer.Option(
         None,
         '--api_key',
