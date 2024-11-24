@@ -12,7 +12,25 @@ from sb_cli.utils import verify_response
 
 app = typer.Typer(help="Submit predictions to the SBM API")
 
+# Helper Functions
+def chunk_dict(data: dict, chunk_size: int):
+    """Split dictionary into chunks of specified size."""
+    items = list(data.items())
+    for i in range(0, len(items), chunk_size):
+        chunk = dict(items[i:i + chunk_size])
+        yield chunk
+
+def submit_chunk(chunk: dict, headers: dict, payload_base: dict):
+    """Submit a single chunk of predictions."""
+    payload = payload_base.copy()
+    payload["predictions"] = chunk
+    response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
+    verify_response(response)
+    return response.json()
+
+# Prediction Processing
 def process_predictions(predictions_path: str, instance_ids: list[str]):
+    """Load and validate predictions from file."""
     with open(predictions_path, 'r') as f:
         if predictions_path.endswith('.json'):
             predictions = json.load(f)
@@ -44,8 +62,8 @@ def process_predictions(predictions_path: str, instance_ids: list[str]):
         raise ValueError("Duplicate instance IDs found in predictions - please remove duplicates before submitting")
     return {p['instance_id']: p for p in preds}
 
-
 def process_poll_response(results: dict, all_ids: list[str]):
+    """Process polling response and categorize instance IDs."""
     running_ids = set(results['running']) & set(all_ids)
     completed_ids = set(results['completed']) & set(all_ids)
     pending_ids = set(all_ids) - running_ids - completed_ids
@@ -55,17 +73,9 @@ def process_poll_response(results: dict, all_ids: list[str]):
         'pending': list(pending_ids)
     }
     
-    
-def wait_for_running(
-    *,
-    all_ids: list[str], 
-    api_key: str, 
-    subset: str,
-    split: str,
-    run_id: str, 
-    console: Console, 
-    timeout
-):
+# Progress Tracking Functions
+def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
+                    split: str, run_id: str, console: Console, timeout):
     """Spin a progress bar until no predictions are pending."""
     headers = {
         "x-api-key": api_key
@@ -99,17 +109,8 @@ def wait_for_running(
         progress.stop()
     console.print("[bold green]✓ Submission complete![/]")
 
-
-def wait_for_completion(
-    *,
-    all_ids: list[str], 
-    api_key: str, 
-    subset: str,
-    split: str,
-    run_id: str, 
-    console: Console, 
-    timeout
-):
+def wait_for_completion(*, all_ids: list[str], api_key: str, subset: str,
+                       split: str, run_id: str, console: Console, timeout):
     """Spin a progress bar until all predictions are complete."""
     headers = {
         "x-api-key": api_key
@@ -143,58 +144,21 @@ def wait_for_completion(
         progress.stop()
     console.print("[bold green]✓ Evaluation complete![/]")
 
-def chunk_dict(data: dict, chunk_size: int):
-    """Split dictionary into chunks of specified size."""
-    items = list(data.items())
-    for i in range(0, len(items), chunk_size):
-        chunk = dict(items[i:i + chunk_size])
-        yield chunk
-
-def submit_chunk(chunk: dict, headers: dict, payload_base: dict):
-    """Submit a single chunk of predictions."""
-    payload = payload_base.copy()
-    payload["predictions"] = chunk
-    response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
-    verify_response(response)
-    return response.json()
-
+# Main Submission Function
 def submit(
-    subset: Subset = typer.Argument(
-        ...,
-        help="Subset to submit predictions for",
-    ),
-    split: str = typer.Argument(
-        ...,
-        help="Split to submit predictions for"
-    ),
-    predictions_path: str = typer.Option(
-        ..., 
-        '--predictions_path', 
-        help="Path to the predictions file"
-    ),
+    subset: Subset = typer.Argument(..., help="Subset to submit predictions for"),
+    split: str = typer.Argument(..., help="Split to submit predictions for"),
+    predictions_path: str = typer.Option(..., '--predictions_path', help="Path to the predictions file"),
     run_id: str = typer.Option(..., '--run_id', help="Run ID for the predictions"),
     instance_ids: Optional[str] = typer.Option(
         None, 
         '--instance_ids',
         help="Instance ID subset to submit predictions - (defaults to all submitted instances)",
-        callback=lambda x: x.split(',') if x else None  # Split comma-separated string into list
+        callback=lambda x: x.split(',') if x else None
     ),
-    output_dir: Optional[str] = typer.Option(
-        'sb-cli-reports',
-        '--output_dir',
-        '-o',
-        help="Directory to save report files"
-    ),
-    overwrite: bool = typer.Option(
-        False, 
-        '--overwrite',
-        help="Overwrite existing report"
-    ),
-    gen_report: bool = typer.Option(
-        True,
-        '--gen_report',
-        help="Generate a report after evaluation is complete"
-    ),
+    output_dir: Optional[str] = typer.Option('sb-cli-reports', '--output_dir', '-o', help="Directory to save report files"),
+    overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
+    gen_report: bool = typer.Option(True, '--gen_report', help="Generate a report after evaluation is complete"),
     api_key: Optional[str] = typer.Option(
         None, 
         '--api_key', 
