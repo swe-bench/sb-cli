@@ -106,7 +106,7 @@ def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
                 break
             elif time.time() - start_time > timeout:
                 # if progress is 0, raise an error, otherwise just print a warning
-                if progress.task_total == 0:
+                if progress.tasks[task].total == 0:
                     raise ValueError((
                         "Submission waiter timed out without making progress - this is probably a bug.\n"
                         "Please submit a bug report at https://github.com/swe-bench/sb-cli/issues"
