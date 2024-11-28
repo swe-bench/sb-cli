@@ -204,7 +204,7 @@ def submit(
     }
 
     # Split predictions into chunks of 50
-    prediction_chunks = list(chunk_dict(predictions, 50))
+    prediction_chunks = list(chunk_dict(predictions, 25))
     
     all_new_ids = []
     all_completed_ids = []
