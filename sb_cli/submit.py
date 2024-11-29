@@ -2,6 +2,7 @@ import json
 import time
 import requests
 import typer
+import sys
 from typing import Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn
@@ -12,18 +13,10 @@ from sb_cli.utils import verify_response
 
 app = typer.Typer(help="Submit predictions to the SBM API")
 
-# Helper Functions
-def chunk_dict(data: dict, chunk_size: int):
-    """Split dictionary into chunks of specified size."""
-    items = list(data.items())
-    for i in range(0, len(items), chunk_size):
-        chunk = dict(items[i:i + chunk_size])
-        yield chunk
-
-def submit_chunk(chunk: dict, headers: dict, payload_base: dict):
-    """Submit a single chunk of predictions."""
+def submit_prediction(prediction: dict, headers: dict, payload_base: dict):
+    """Submit a single prediction."""
     payload = payload_base.copy()
-    payload["predictions"] = chunk
+    payload["prediction"] = prediction
     response = requests.post(f'{API_BASE_URL}/submit', json=payload, headers=headers)
     verify_response(response)
     return response.json()
@@ -60,7 +53,7 @@ def process_predictions(predictions_path: str, instance_ids: list[str]):
         raise ValueError("All predictions must be for the same model")
     if len(set([p['instance_id'] for p in preds])) != len(preds):
         raise ValueError("Duplicate instance IDs found in predictions - please remove duplicates before submitting")
-    return {p['instance_id']: p for p in preds}
+    return preds
 
 def process_poll_response(results: dict, all_ids: list[str]):
     """Process polling response and categorize instance IDs."""
@@ -72,31 +65,130 @@ def process_poll_response(results: dict, all_ids: list[str]):
         'completed': list(completed_ids),
         'pending': list(pending_ids)
     }
-    
+
 # Progress Tracking Functions
-def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
-                    split: str, run_id: str, console: Console, timeout):
-    """Spin a progress bar until no predictions are pending."""
-    headers = {
-        "x-api-key": api_key
-    }
-    poll_payload = {
-        'run_id': run_id,
-        'subset': subset,
-        'split': split
-    }
+def run_progress_task(
+    console: Console, 
+    task_name: str, 
+    total: int, 
+    task_func, 
+    timeout: Optional[int] = None, 
+    *args, 
+    **kwargs
+):
+    """Run a task with a progress bar and a default timeout."""
     progress = Progress(
         SpinnerColumn(),
-        TextColumn("[bold blue]Processing submission..."),
+        TextColumn(f"[bold blue]{task_name}..."),
         BarColumn(),
         TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.1f}%"),
         TimeElapsedColumn(),
         console=console,
     )
     start_time = time.time()
-    completion_message = "[bold green]✓ Submission complete![/]"
+    completed = 0
     with progress:
-        task = progress.add_task("", total=len(all_ids))
+        task = progress.add_task("", total=total)
+        try:
+            # Run the task function with a timeout
+            result = task_func(progress, task, *args, **kwargs)
+        except Exception as e:
+            console.print(f"[bold red]Error during task: {str(e)}[/]")
+            raise e
+        finally:
+            elapsed_time = time.time() - start_time
+            progress.stop()
+            final_percentage = progress.tasks[task].completed / progress.tasks[task].total * 100
+            completed = progress.tasks[task].completed
+            total = progress.tasks[task].total
+            progress.remove_task(task)
+            if completed == total:
+                console.print(f"[bold green]✓ {task_name} complete![/]")
+            elif timeout and elapsed_time > timeout:
+                console.print(f"[bold red]✗ {task_name} timed out after {timeout} seconds. Try re-running submit to continue.[/]")
+                sys.exit(1)
+            else:
+                console.print(f"[bold yellow]  {task_name} completed with {completed}/{total} instances[/]")
+    return {
+        "result": result,
+        "elapsed_time": elapsed_time,
+        "final_percentage": final_percentage,
+        "completed": completed,
+        "total": total,
+        "timeout": timeout and elapsed_time > timeout,
+    }
+
+def submit_predictions_with_progress(
+    predictions: list[dict], 
+    headers: dict, 
+    payload_base: dict, 
+) -> tuple[list[str], list[str]]:
+    """Submit predictions with a progress bar and return new and completed IDs."""
+    def task_func(progress, task):
+        all_new_ids = []
+        all_completed_ids = []
+        failed_ids = []
+        with ThreadPoolExecutor(max_workers=min(24, len(predictions))) as executor:
+            future_to_prediction = {
+                executor.submit(submit_prediction, pred, headers, payload_base): pred 
+                for pred in predictions
+            }
+            for future in as_completed(future_to_prediction):
+                try:
+                    launch_data = future.result()
+                    if launch_data["launched"]:
+                        all_new_ids.append(launch_data['instance_id'])
+                    else:
+                        all_completed_ids.append(launch_data['instance_id'])
+                except Exception as e:
+                    failed_ids.append(launch_data['instance_id'])
+                    raise RuntimeError(f"Error submitting prediction for instance {launch_data['instance_id']}: {str(e)}")
+                finally:
+                    progress.update(task, advance=1)
+        return {
+            "new_ids": all_new_ids,
+            "all_completed_ids": all_completed_ids,
+            "failed_ids": failed_ids
+        }
+    console = Console()
+    result = run_progress_task(
+        console,
+        "Submitting predictions", 
+        len(predictions), 
+        task_func,
+    )["result"]
+    new_ids = result["new_ids"]
+    all_completed_ids = result["all_completed_ids"]
+    failed_ids = result["failed_ids"]
+    if len(all_completed_ids) > 0:
+        console.print((
+            f'[bold yellow]  Warning: {len(all_completed_ids)} predictions already submitted. '
+            'These will not be re-evaluated[/]'
+        ))
+    if len(new_ids) > 0:
+        console.print(
+            f'[bold green]  {len(new_ids)} new predictions uploaded[/][bold yellow] - these cannot be changed[/]'
+        )
+    if len(failed_ids) > 0:
+        console.print(
+            f'[bold red]✗ {len(failed_ids)} predictions failed to submit[/]'
+        )
+    return new_ids, all_completed_ids
+
+def wait_for_running(
+    *, 
+    all_ids: list[str], 
+    api_key: str, 
+    subset: str,
+    split: str, 
+    run_id: str, 
+    timeout: int
+):
+    """Spin a progress bar until no predictions are pending."""
+    def task_func(progress, task):
+        headers = {"x-api-key": api_key}
+        poll_payload = {'run_id': run_id, 'subset': subset, 'split': split}
+        start_time = time.time()
         while True:
             poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload, headers=headers)
             verify_response(poll_response)
@@ -104,23 +196,23 @@ def wait_for_running(*, all_ids: list[str], api_key: str, subset: str,
             progress.update(task, completed=len(poll_results['running']) + len(poll_results['completed']))
             if len(poll_results['pending']) == 0:
                 break
-            elif time.time() - start_time > timeout:
-                # if progress is 0, raise an error, otherwise just print a warning
-                if progress.tasks[task].total == 0:
-                    raise ValueError((
-                        "Submission waiter timed out without making progress - this is probably a bug.\n"
-                        "Please submit a bug report at https://github.com/swe-bench/sb-cli/issues"
-                    ))
-                else:
-                    completion_message = (
-                        '[bold red]x Submission waiter timed out, but some predictions may not have been submitted - '
-                        're-run submit to complete your submission[/]'
-                    )
+
+            if (time.time() - start_time) > timeout:
                 break
             else:
                 time.sleep(8)
-        progress.stop()
-    console.print(completion_message)
+    result = run_progress_task(
+        Console(),
+        "Processing submission", 
+        len(all_ids), 
+        task_func,
+        timeout=timeout,
+    )
+    if result["timeout"] and result["completed"] == 0:
+        raise ValueError((
+            "Submission waiter timed out without making progress - this is probably a bug.\n"
+            "Please submit a bug report at https://github.com/swe-bench/sb-cli/issues"
+        ))
 
 def wait_for_completion(
     *,
@@ -129,30 +221,13 @@ def wait_for_completion(
     subset: str,
     split: str,
     run_id: str,
-    console: Console,
     timeout: int
 ):
     """Spin a progress bar until all predictions are complete."""
-    headers = {
-        "x-api-key": api_key
-    }
-    poll_payload = {
-        'run_id': run_id,
-        'subset': subset,
-        'split': split
-    }
-    progress = Progress(
-        SpinnerColumn(),
-        TextColumn("[bold blue]Evaluating predictions..."),
-        BarColumn(),
-        TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.1f}%"),
-        TimeElapsedColumn(),
-        console=console,
-    )
-    start_time = time.time()
-    completion_message = "[bold green]✓ Evaluation complete![/]"
-    with progress:
-        task = progress.add_task("", total=len(all_ids))
+    def task_func(progress, task):
+        headers = {"x-api-key": api_key}
+        poll_payload = {'run_id': run_id, 'subset': subset, 'split': split}
+        start_time = time.time()
         while True:
             poll_response = requests.get(f'{API_BASE_URL}/poll-jobs', json=poll_payload, headers=headers)
             verify_response(poll_response)
@@ -160,13 +235,20 @@ def wait_for_completion(
             progress.update(task, completed=len(poll_results['completed']))
             if len(poll_results['completed']) == len(all_ids):
                 break
-            elif time.time() - start_time > timeout:
-                completion_message = "[bold red]✗ Evaluation waiter timed out - re-run submit to continue waiting[/]"
+            print(f"Checking timeout - {time.time() - start_time} > {timeout}")
+
+            if (time.time() - start_time) > timeout:
                 break
             else:
                 time.sleep(15)
-        progress.stop()
-    console.print(completion_message)
+
+    run_progress_task(
+        Console(),
+        "Evaluating predictions", 
+        len(all_ids), 
+        task_func,
+        timeout=timeout,
+    )
 
 # Main Submission Function
 def submit(
@@ -202,42 +284,9 @@ def submit(
         "instance_ids": instance_ids,
         "run_id": run_id
     }
-
-    # Split predictions into chunks of 50
-    prediction_chunks = list(chunk_dict(predictions, 25))
     
-    all_new_ids = []
-    all_completed_ids = []
-    
-    with console.status("[bold blue]Predictions sent. Waiting for confirmation...", spinner="dots"):
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            # Submit all chunks in parallel
-            future_to_chunk = {
-                executor.submit(submit_chunk, chunk, headers, payload_base): chunk 
-                for chunk in prediction_chunks
-            }
-            
-            # Collect results
-            for future in as_completed(future_to_chunk):
-                try:
-                    launch_data = future.result()
-                    all_new_ids.extend(launch_data['new_ids'])
-                    all_completed_ids.extend(launch_data['completed_ids'])
-                except Exception as e:
-                    console.print(f"[bold red]Error submitting chunk: {str(e)}[/]")
-                    raise e
-
-    all_ids = all_new_ids + all_completed_ids
-    
-    if len(all_completed_ids) > 0:
-        console.print((
-            f'[bold yellow]Warning: {len(all_completed_ids)} predictions already submitted. '
-            'These will not be re-evaluated[/]'
-        ))
-    if len(all_new_ids) > 0:
-        console.print(
-            f'[bold green]✓ {len(all_new_ids)} new predictions uploaded[/][bold yellow] - these cannot be changed[/]'
-        )
+    new_ids, all_completed_ids = submit_predictions_with_progress(predictions, headers, payload_base)
+    all_ids = new_ids + all_completed_ids
 
     run_metadata = {
         'run_id': run_id,
@@ -247,14 +296,12 @@ def submit(
     }
     wait_for_running(
         all_ids=all_ids, 
-        console=console, 
         timeout=60 * 5,
         **run_metadata
     )
     if gen_report:
         wait_for_completion(
             all_ids=all_ids, 
-            console=console, 
             timeout=60 * 10,
             **run_metadata
         )
