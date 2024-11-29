@@ -7,7 +7,8 @@ from . import (
     get_report,
     list_runs,
     submit,
-    verify_api_key
+    verify_api_key,
+    delete_run
 )
 
 app.command(name="get-report")(get_report.get_report)
@@ -15,7 +16,7 @@ app.command(name="list-runs")(list_runs.list_runs)
 app.command(name="submit")(submit.submit)
 app.command(name="verify-api-key")(verify_api_key.verify)
 app.command(name="gen-api-key")(gen_api_key.gen_api_key)
-
+app.command(name="delete-run")(delete_run.delete_run)
 def main():
     """Run the SWE-bench CLI application"""
     import sys
