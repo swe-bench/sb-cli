@@ -81,7 +81,7 @@ def get_report(
     }
     headers = {'x-api-key': api_key} if api_key else {}
     console = Console()
-    with console.status(f"[bold blue]Creating report for run {run_id}...", spinner="dots"):
+    with console.status(f"[blue]Creating report for run {run_id}...", spinner="dots"):
         response = requests.post(f"{API_BASE_URL}/get-report", json=payload, headers=headers)
         verify_response(response)
         response = response.json()

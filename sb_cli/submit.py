@@ -10,6 +10,7 @@ from rich.console import Console
 from sb_cli.config import API_BASE_URL, Subset
 from sb_cli.get_report import get_report
 from sb_cli.utils import verify_response
+from pathlib import Path
 
 app = typer.Typer(help="Submit predictions to the SBM API")
 
@@ -79,7 +80,7 @@ def run_progress_task(
     """Run a task with a progress bar and a default timeout."""
     progress = Progress(
         SpinnerColumn(),
-        TextColumn(f"[bold blue]{task_name}..."),
+        TextColumn(f"[blue]{task_name}..."),
         BarColumn(),
         TaskProgressColumn(text_format="[progress.percentage]{task.percentage:>3.1f}%"),
         TimeElapsedColumn(),
@@ -87,28 +88,32 @@ def run_progress_task(
     )
     start_time = time.time()
     completed = 0
+    exception = None
     with progress:
         task = progress.add_task("", total=total)
         try:
             # Run the task function with a timeout
             result = task_func(progress, task, *args, **kwargs)
         except Exception as e:
-            console.print(f"[bold red]Error during task: {str(e)}[/]")
-            raise e
+            exception = e
         finally:
             elapsed_time = time.time() - start_time
             progress.stop()
+            if exception:
+                console.print(f"[red]Error during task: {str(exception)}[/]")
+                raise exception
             final_percentage = progress.tasks[task].completed / progress.tasks[task].total * 100
             completed = progress.tasks[task].completed
             total = progress.tasks[task].total
             progress.remove_task(task)
             if completed == total:
-                console.print(f"[bold green]✓ {task_name} complete![/]")
+                console.print(f"[green]✓ {task_name} complete![/]")
             elif timeout and elapsed_time > timeout:
-                console.print(f"[bold red]✗ {task_name} timed out after {timeout} seconds. Try re-running submit to continue.[/]")
+                # don't print the timeout message if the task completed
+                console.print(f"[red]✗ {task_name} timed out after {timeout} seconds. Try re-running submit to continue.[/]")
                 sys.exit(1)
             else:
-                console.print(f"[bold yellow]  {task_name} completed with {completed}/{total} instances[/]")
+                console.print(f"[yellow]✓ {task_name} completed with {completed}/{total} instances[/]")
     return {
         "result": result,
         "elapsed_time": elapsed_time,
@@ -162,16 +167,16 @@ def submit_predictions_with_progress(
     failed_ids = result["failed_ids"]
     if len(all_completed_ids) > 0:
         console.print((
-            f'[bold yellow]  Warning: {len(all_completed_ids)} predictions already submitted. '
+            f'[yellow]  Warning: {len(all_completed_ids)} predictions already submitted. '
             'These will not be re-evaluated[/]'
         ))
     if len(new_ids) > 0:
         console.print(
-            f'[bold green]  {len(new_ids)} new predictions uploaded[/][bold yellow] - these cannot be changed[/]'
+            f'[green]  {len(new_ids)} new predictions uploaded[/][yellow] - these cannot be changed[/]'
         )
     if len(failed_ids) > 0:
         console.print(
-            f'[bold red]✗ {len(failed_ids)} predictions failed to submit[/]'
+            f'[red]✗ {len(failed_ids)} predictions failed to submit[/]'
         )
     return new_ids, all_completed_ids
 
@@ -235,7 +240,6 @@ def wait_for_completion(
             progress.update(task, completed=len(poll_results['completed']))
             if len(poll_results['completed']) == len(all_ids):
                 break
-            print(f"Checking timeout - {time.time() - start_time} > {timeout}")
 
             if (time.time() - start_time) > timeout:
                 break
@@ -255,9 +259,9 @@ def submit(
     subset: Subset = typer.Argument(..., help="Subset to submit predictions for"),
     split: str = typer.Argument(..., help="Split to submit predictions for"),
     predictions_path: str = typer.Option(..., '--predictions_path', help="Path to the predictions file"),
-    run_id: str = typer.Option(..., '--run_id', help="Run ID for the predictions"),
+    run_id: str = typer.Option("PARENT", '--run_id', help="Run ID for the predictions"),
     instance_ids: Optional[str] = typer.Option(
-        None, 
+        None,
         '--instance_ids',
         help="Instance ID subset to submit predictions - (defaults to all submitted instances)",
         callback=lambda x: x.split(',') if x else None
@@ -274,7 +278,17 @@ def submit(
 ):
     """Submit predictions to the SWE-bench M API."""
     console = Console()
-    predictions = process_predictions(predictions_path, instance_ids)
+    
+    # Convert predictions_path to a Path object
+    predictions_path = Path(predictions_path)
+    
+    # Determine run_id based on special options
+    if run_id == "PARENT":
+        run_id = predictions_path.parent.name
+    elif run_id == "STEM":
+        run_id = predictions_path.stem
+
+    predictions = process_predictions(str(predictions_path), instance_ids)
     headers = {
         "x-api-key": api_key
     }
@@ -284,6 +298,8 @@ def submit(
         "instance_ids": instance_ids,
         "run_id": run_id
     }
+
+    console.print(f"[yellow]  Submitting predictions for {run_id} - ({subset.value} {split})[/]")
     
     new_ids, all_completed_ids = submit_predictions_with_progress(predictions, headers, payload_base)
     all_ids = new_ids + all_completed_ids

@@ -18,7 +18,7 @@ def list_runs(
     headers = {
         "x-api-key": api_key
     }
-    with console.status("[bold blue]Fetching runs..."):
+    with console.status("[blue]Fetching runs..."):
         response = requests.post(
             f"{API_BASE_URL}/list-runs",
             headers=headers,
