@@ -146,8 +146,10 @@ def submit_predictions_with_progress(
                     else:
                         all_completed_ids.append(launch_data['instance_id'])
                 except Exception as e:
-                    failed_ids.append(launch_data['instance_id'])
-                    raise RuntimeError(f"Error submitting prediction for instance {launch_data['instance_id']}: {str(e)}")
+                    # Retrieve the prediction associated with the failed future
+                    pred = future_to_prediction[future]
+                    failed_ids.append(pred['instance_id'])
+                    raise RuntimeError(f"Error submitting prediction for instance {pred['instance_id']}: {str(e)}")
                 finally:
                     progress.update(task, advance=1)
         return {
