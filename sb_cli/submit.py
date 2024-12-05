@@ -273,7 +273,7 @@ def submit(
     overwrite: int = typer.Option(0, '--overwrite', help="Overwrite existing report"),
     gen_report: int = typer.Option(1, '--gen_report', help="Generate a report after evaluation is complete"),
     verify_submission: int = typer.Option(1, '--verify_submission', help="Verify submission before waiting for completion"),
-    wait_for_evaluation: int = typer.Option(1, '--wait_for_evaluation', help="Wait for evaluation to complete before generating a report"),
+    should_wait_for_evaluation: int = typer.Option(1, '--wait_for_evaluation', help="Wait for evaluation to complete before generating a report"),
     api_key: Optional[str] = typer.Option(
         None, 
         '--api_key', 
@@ -321,7 +321,7 @@ def submit(
             timeout=60 * 5,
             **run_metadata
         )
-    if wait_for_evaluation:
+    if should_wait_for_evaluation:
         wait_for_evaluation(
             all_ids=all_ids, 
             timeout=60 * 10,
