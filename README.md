@@ -61,8 +61,8 @@ sb-cli submit swe-bench-m test \
 Options:
 - `--instance_ids`: Comma-separated list of specific instance IDs to submit (optional)
 - `--output_dir`: Directory to save report files (default: sb-cli-reports)
-- `--overwrite`: Overwrite existing report
-- `--gen_report`: Generate a report after evaluation is complete (default: True)
+- `--overwrite`: Overwrite existing report (default: 0)
+- `--gen_report`: Generate a report after evaluation is complete (default: 1)
 
 ### Get Report
 

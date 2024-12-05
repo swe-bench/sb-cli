@@ -4,6 +4,7 @@ import requests
 import typer
 import sys
 from typing import Optional
+from typing_extensions import Annotated
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeElapsedColumn
 from rich.console import Console
@@ -269,8 +270,8 @@ def submit(
         callback=lambda x: x.split(',') if x else None
     ),
     output_dir: Optional[str] = typer.Option('sb-cli-reports', '--output_dir', '-o', help="Directory to save report files"),
-    overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
-    gen_report: bool = typer.Option(True, '--gen_report', help="Generate a report after evaluation is complete"),
+    overwrite: int = typer.Option(0, '--overwrite', help="Overwrite existing report"),
+    gen_report: int = typer.Option(1, '--gen_report', help="Generate a report after evaluation is complete"),
     api_key: Optional[str] = typer.Option(
         None, 
         '--api_key', 

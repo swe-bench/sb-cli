@@ -53,7 +53,7 @@ def get_report(
         help="API key to use",
         envvar="SWEBENCH_API_KEY"
     ),
-    overwrite: bool = typer.Option(False, '--overwrite', help="Overwrite existing report"),
+    overwrite: int = typer.Option(0, '--overwrite', help="Overwrite existing report"),
     output_dir: Optional[str] = typer.Option(
         'sb-cli-reports',
         '--output_dir',
