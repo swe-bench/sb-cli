@@ -222,7 +222,7 @@ def wait_for_running(
             "Please submit a bug report at https://github.com/swe-bench/sb-cli/issues"
         ))
 
-def wait_for_completion(
+def wait_for_evaluation(
     *,
     all_ids: list[str],
     api_key: str,
@@ -273,7 +273,7 @@ def submit(
     overwrite: int = typer.Option(0, '--overwrite', help="Overwrite existing report"),
     gen_report: int = typer.Option(1, '--gen_report', help="Generate a report after evaluation is complete"),
     verify_submission: int = typer.Option(1, '--verify_submission', help="Verify submission before waiting for completion"),
-    wait_for_completion: int = typer.Option(1, '--wait_for_completion', help="Wait for evaluation to complete before generating a report"),
+    wait_for_evaluation: int = typer.Option(1, '--wait_for_evaluation', help="Wait for evaluation to complete before generating a report"),
     api_key: Optional[str] = typer.Option(
         None, 
         '--api_key', 
@@ -321,8 +321,8 @@ def submit(
             timeout=60 * 5,
             **run_metadata
         )
-    if wait_for_completion:
-        wait_for_completion(
+    if wait_for_evaluation:
+        wait_for_evaluation(
             all_ids=all_ids, 
             timeout=60 * 10,
             **run_metadata
