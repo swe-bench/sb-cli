@@ -1,18 +1,18 @@
 [data-md-color-scheme="default"] {
   --md-default-bg-color: #fff7ec;
-  --md-primary-fg-color: #000000;
+  --md-primary-fg-color: #e79925;
   --md-typeset-a-color: #0099ff;
   --md-code-bg-color: #e7e7e7;
 }
 
 [data-md-color-scheme="slate"] {
-  --md-primary-fg-color: #000000;
+  --md-primary-fg-color: #e79925;
   --md-default-fg-color: #fff7ec;
   --md-default-bg-color: #111111;
 }
 
 .clickable-banner {
-  color: #000000;
+  color: #ff0000;
 }
 
 .md-main__inner.md-grid,
