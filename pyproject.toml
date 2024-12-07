@@ -25,3 +25,9 @@ packages = ["sb_cli"]
 [tool.ruff]
 line-length = 88
 src = ["sb_cli"]
+
+[project.optional-dependencies]
+dev = [
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.0.0",
+]
