@@ -35,9 +35,3 @@ To upgrade to the latest version:
 ```bash
 pip install --upgrade sb-cli
 ```
-
-## System Requirements
-
-- Python 3.7+
-- pip package manager
-- 20MB free disk space

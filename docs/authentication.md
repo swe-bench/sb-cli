@@ -41,10 +41,3 @@ After receiving your API key, you'll get an email with a verification code. Veri
 ```bash
 sb-cli verify-api-key YOUR_VERIFICATION_CODE
 ```
-
-## Security Best Practices
-
-- Never share your API key
-- Don't commit your API key to version control
-- Rotate your API key if you suspect it has been compromised
-- Use environment variables instead of hardcoding the key

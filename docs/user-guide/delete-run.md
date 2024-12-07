@@ -1,6 +1,6 @@
 # Delete Run Command
 
-The `delete-run` command removes a specific run and its associated data.
+The `delete-run` command removes a specific run id and its associated data.
 
 ## Usage
 

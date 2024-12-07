@@ -41,11 +41,11 @@ theme:
     - content.code.copy
 
 nav:
-  - Getting Started:
-    - Overview: getting-started/index.md
-    - Installation: getting-started/installation.md
-    - Authentication: getting-started/authentication.md
-    - Quick Start: getting-started/quick-start.md
+  - "Getting Started":
+    - index.md
+    - "Installation": installation.md
+    - "Authentication": authentication.md
+    - "Quick Start": quick-start.md
   - User Guide:
     - Overview: user-guide/index.md
     - Submit: user-guide/submit.md

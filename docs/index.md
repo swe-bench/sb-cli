@@ -17,17 +17,11 @@ All on the cloud!
 
 - **Easy Submission**: Submit your model's predictions with a single command
 - **Real-time Tracking**: Monitor evaluation progress in real-time
-- **Flexible Output**: Get detailed reports in JSON format
-- **Run Management**: List and delete runs as needed
+- **Run Management**: Access and delete runs as needed
 
 ## Quick Links
 
 - [Installation](installation.md): Get started with installing the CLI
 - [Authentication](authentication.md): Set up your API key
 - [Quick Start](quick-start.md): Submit your first predictions
-
-## Requirements
-
-- Python 3.7 or higher
-- Internet connection for API access
-- Valid API key (see [Authentication](authentication.md))
+- [User Guide](user-guide/index.md): Detailed guide on using the CLI

@@ -6,12 +6,12 @@ This guide will help you submit your first predictions to SWE-bench and get an e
 
 Before starting, ensure you have:
 - Installed the CLI (`pip install sb-cli`)
-- Generated and verified your API key
+- Generated and verified your API key (see [Authentication](authentication.md))
 - Set up your `SWEBENCH_API_KEY` environment variable
 
 ## 1. Prepare Your Predictions
 
-Create a JSON file (`predictions.json`) with your model's predictions:
+Create a JSON file (`preds.json`) with your model's predictions for the [SWE-bench M](https://arxiv.org/abs/2410.03859) `dev` split:
 
 ```json
 {
@@ -32,7 +32,7 @@ Submit your predictions to SWE-bench:
 
 ```bash
 sb-cli submit swe-bench-m dev \
-    --predictions_path predictions.json \
+    --predictions_path ./path/to/preds.json \
     --run_id my_first_run
 ```
 
@@ -43,7 +43,7 @@ The CLI will:
 
 ## 3. Check Results
 
-Get your evaluation report:
+You can access your evaluation report again by running:
 
 ```bash
 sb-cli get-report swe-bench-m dev my_first_run
@@ -51,14 +51,8 @@ sb-cli get-report swe-bench-m dev my_first_run
 
 ## 4. View All Runs
 
-List all your submitted runs:
+You can view all your submitted runs for `swe-bench-m` / `dev` by running:
 
 ```bash
 sb-cli list-runs swe-bench-m dev
 ```
-
-## Next Steps
-
-- Read the [User Guide](../user-guide/index.md) for detailed command information
-- Learn about different [submission options](../user-guide/submit.md)
-- Understand how to [manage your runs](../user-guide/list-runs.md)
