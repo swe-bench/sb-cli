@@ -32,7 +32,7 @@ Submit your predictions to SWE-bench:
 
 ```bash
 sb-cli submit swe-bench-m dev \
-    --predictions_path ./path/to/preds.json \
+    --predictions_path preds.json \
     --run_id my_first_run
 ```
 

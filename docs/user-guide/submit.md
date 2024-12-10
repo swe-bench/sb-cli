@@ -16,7 +16,7 @@ sb-cli submit <subset> <split> --predictions_path <path> [options]
 ## Options
 
 - `--predictions_path`: Path to your predictions file (required)
-- `--run_id`: Unique identifier for this submission (default: parent directory name)
+- `--run_id`: Unique identifier for this submission. You can use the values PARENT or STEM to use the parent directory name or the stem of the predictions file name. (default: PARENT)
 - `--instance_ids`: Comma-separated list of specific instances to submit
 - `--output_dir`: Directory to save report files (default: sb-cli-reports)
 - `--overwrite`: Overwrite existing report (0/1, default: 0)

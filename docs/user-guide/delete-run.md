@@ -1,5 +1,8 @@
 # Delete Run Command
 
+!!! warning
+    This command is currently disabled.
+
 The `delete-run` command removes a specific run id and its associated data.
 
 ## Usage

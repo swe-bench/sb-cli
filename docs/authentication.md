@@ -16,7 +16,7 @@ sb-cli gen-api-key your.email@example.com
 
 There are two ways to use your API key:
 
-### 1. Environment Variable (Recommended)
+### 1. Environment Setup (Recommended)
 
 Set your API key as an environment variable:
 
@@ -25,6 +25,9 @@ export SWEBENCH_API_KEY=your_api_key
 ```
 
 For permanent setup, add this line to your shell's configuration file (`.bashrc`, `.zshrc`, etc.).
+
+!!! note
+    You can test that your key is working with `sb-cli get-quotas`
 
 ### 2. Command Line Option
 

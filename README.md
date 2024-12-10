@@ -59,6 +59,7 @@ sb-cli submit swe-bench-m test \
 ```
 
 Options:
+- `--run_id`: ID of the run to submit predictions for (optional, defaults to the name of the parent directory of the predictions file)
 - `--instance_ids`: Comma-separated list of specific instance IDs to submit (optional)
 - `--output_dir`: Directory to save report files (default: sb-cli-reports)
 - `--overwrite`: Overwrite existing report (default: 0)

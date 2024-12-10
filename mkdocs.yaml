@@ -48,11 +48,11 @@ nav:
     - "Quick Start": quick-start.md
   - User Guide:
     - Overview: user-guide/index.md
+    - Get Quotas: user-guide/get-quotas.md
     - Submit: user-guide/submit.md
     - Get Report: user-guide/get-report.md
     - List Runs: user-guide/list-runs.md
     - Delete Run: user-guide/delete-run.md
-
 markdown_extensions:
   - sane_lists
   - admonition
