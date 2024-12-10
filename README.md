@@ -6,6 +6,8 @@
 
 A command-line interface for interacting with the SWE-bench API. Use this tool to submit predictions, manage runs, and retrieve evaluation reports.
 
+Read the full documentation [here](https://swe-bench.com/sb-cli).
+
 ## Installation
 
 ```bash
