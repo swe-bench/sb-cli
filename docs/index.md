@@ -1,7 +1,7 @@
 # Overview
 
 <div style="text-align:center">
-    <img src="../assets/logo.svg" alt="SWE-bench CLI" style="max-height: 10em"/>
+    <img src="assets/logo.svg" alt="SWE-bench CLI" style="max-height: 10em"/>
 </div>
 
 SWE-bench CLI is a command-line tool for interacting with the SWE-bench API. This tool allows you to:
