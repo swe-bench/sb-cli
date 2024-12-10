@@ -1,5 +1,3 @@
-sbm-dev.json
-sbm-test.json
 __pycache__/
 *.log
 *.json
