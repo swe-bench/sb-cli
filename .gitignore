@@ -1,3 +1,4 @@
+site/
 __pycache__/
 *.log
 *.json
