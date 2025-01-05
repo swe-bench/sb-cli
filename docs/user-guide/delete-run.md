@@ -13,7 +13,7 @@ sb-cli delete-run <subset> <split> <run_id>
 
 ## Arguments
 
-- `subset`: Dataset subset (`swe-bench-m` or `swe-bench_lite`)
+- `subset`: Dataset subset (`swe-bench-m`, `swe-bench_lite`, `swe-bench_verified`)
 - `split`: Dataset split (`dev` or `test`)
 - `run_id`: ID of the run to delete
 

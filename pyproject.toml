@@ -1,6 +1,6 @@
 [project]
 name = "sb-cli"
-version = "0.1.0"
+version = "0.1.1"
 description = "Submit predictions to the SWE-bench API and manage your runs"
 authors = [
     { name = "SWE-bench team", email = "support@swebench.com" }

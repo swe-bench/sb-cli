@@ -41,10 +41,11 @@ SWE-bench has different subsets and splits available:
 ### Subsets
 - `swe-bench-m`: The main dataset
 - `swe-bench_lite`: A smaller subset for testing and development
+- `swe-bench_verified`: 500 verified problems from SWE-bench [Learn more](https://openai.com/index/introducing-swe-bench-verified/)
 
 ### Splits
 - `dev`: Development/validation split
-- `test`: Test split (currently only available for `swe-bench_lite`)
+- `test`: Test split (currently only available for `swe-bench_lite` and `swe-bench_verified`)
 
 You'll need to specify both a subset and split for most commands.
 

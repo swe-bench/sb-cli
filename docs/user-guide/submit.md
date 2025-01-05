@@ -10,7 +10,7 @@ sb-cli submit <subset> <split> --predictions_path <path> [options]
 
 ## Arguments
 
-- `subset`: Dataset subset (`swe-bench-m` or `swe-bench_lite`)
+- `subset`: Dataset subset (`swe-bench-m`, `swe-bench_lite`, `swe-bench_verified`)
 - `split`: Dataset split (`dev` or `test`)
 
 ## Options
